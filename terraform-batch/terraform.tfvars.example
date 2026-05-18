@@ -1,0 +1,5 @@
+# Copy this to terraform.tfvars and update values
+vpc_id        = "vpc-12345678"
+subnet_ids    = ["subnet-12345678", "subnet-87654321"]
+jenkins_url   = "http://54.123.45.67:8080"
+jenkins_token = "ct-trigger-token"
