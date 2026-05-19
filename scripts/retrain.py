@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 MODEL_BUCKET = os.environ.get('MODEL_BUCKET', 'chest-ct-models-155407238003')
 DATA_BUCKET = os.environ.get('DATA_BUCKET', 'chest-ct-raw-data')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
-JENKINS_URL = os.environ.get('JENKINS_URL', 'http://your-jenkins-ip:8080')
+JENKINS_URL = os.environ.get('JENKINS_URL', 'http://100.51.185.244/:8080')
 JENKINS_TOKEN = os.environ.get('JENKINS_TOKEN', 'ct-trigger-token')
 JOB_NAME = "Gajanan Wagalgave"  # Your Jenkins pipeline job name
 

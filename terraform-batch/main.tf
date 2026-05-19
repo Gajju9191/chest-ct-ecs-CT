@@ -44,6 +44,12 @@ resource "aws_iam_role_policy_attachment" "batch_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# CloudWatch Logs Access
+resource "aws_iam_role_policy_attachment" "batch_logs" {
+  role       = aws_iam_role.batch_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+
 # Instance Profile
 resource "aws_iam_instance_profile" "batch_profile" {
   name = "chest-ct-batch-profile"
@@ -71,14 +77,15 @@ resource "aws_batch_compute_environment" "training" {
   service_role             = "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
 
   compute_resources {
-    max_vcpus         = 16
-    min_vcpus         = 0
-    desired_vcpus     = 0
-    instance_role     = aws_iam_instance_profile.batch_profile.arn
-    bid_percentage    = 80  # Use Spot Instances
-    instance_type     = ["g4dn.xlarge", "c5.xlarge"]
-    subnets           = var.subnet_ids
-    security_group_ids = [aws_security_group.batch.id]
+    type                = "EC2"  # ← This was missing
+    max_vcpus           = 16
+    min_vcpus           = 0
+    desired_vcpus       = 0
+    instance_role       = aws_iam_instance_profile.batch_profile.arn
+    bid_percentage      = 80
+    instance_type       = var.instance_types
+    subnets             = var.subnet_ids
+    security_group_ids  = [aws_security_group.batch.id]
     allocation_strategy = "BEST_FIT_PROGRESSIVE"
   }
 }
