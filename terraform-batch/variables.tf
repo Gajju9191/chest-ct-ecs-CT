@@ -35,6 +35,18 @@ variable "job_memory" {
   default     = 16384
 }
 
+variable "instance_types" {
+  description = "EC2 instance types for Batch compute environment"
+  type        = list(string)
+  default     = ["g4dn.xlarge", "c5.xlarge"]
+}
+
+variable "max_vcpus" {
+  description = "Maximum vCPUs for Batch compute environment"
+  type        = number
+  default     = 16
+}
+
 variable "jenkins_url" {
   description = "Jenkins server URL"
   type        = string
@@ -47,15 +59,14 @@ variable "jenkins_token" {
   sensitive   = true
 }
 
-variable "instance_types" {
-  description = "EC2 instance types for Batch compute environment"
-  type        = list(string)
-  default     = ["g4dn.xlarge", "c5.xlarge"]
+variable "jenkins_username" {
+  description = "Jenkins username"
+  type        = string
+  default     = "Gajanan Wagalgave"
 }
 
-# ADD THIS VARIABLE
-variable "max_vcpus" {
-  description = "Maximum vCPUs for Batch compute environment"
-  type        = number
-  default     = 16
+variable "jenkins_api_token" {
+  description = "Jenkins API token"
+  type        = string
+  sensitive   = true
 }

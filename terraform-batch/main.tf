@@ -140,7 +140,9 @@ resource "aws_batch_job_definition" "retraining" {
       { name = "DATA_BUCKET", value = var.data_bucket },
       { name = "AWS_REGION", value = var.aws_region },
       { name = "JENKINS_URL", value = var.jenkins_url },
-      { name = "JENKINS_TOKEN", value = var.jenkins_token }
+      { name = "JENKINS_TOKEN", value = var.jenkins_token },
+      { name = "JENKINS_USERNAME", value = var.jenkins_username },
+      { name = "JENKINS_API_TOKEN", value = var.jenkins_api_token }
     ]
     
     executionRoleArn = aws_iam_role.batch_role.arn
