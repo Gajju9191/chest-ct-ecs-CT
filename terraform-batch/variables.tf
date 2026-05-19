@@ -44,3 +44,10 @@ variable "jenkins_token" {
   type        = string
   sensitive   = true
 }
+
+# ADD THIS MISSING VARIABLE
+variable "instance_types" {
+  description = "EC2 instance types for Batch compute environment"
+  type        = list(string)
+  default     = ["g4dn.xlarge", "c5.xlarge"]
+}
