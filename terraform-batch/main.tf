@@ -77,8 +77,8 @@ resource "aws_batch_compute_environment" "training" {
   service_role             = "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
 
   compute_resources {
-    type                = "EC2"  # ← This was missing
-    max_vcpus           = 16
+    type                = "EC2"
+    max_vcpus           = var.max_vcpus
     min_vcpus           = 0
     desired_vcpus       = 0
     instance_role       = aws_iam_instance_profile.batch_profile.arn
@@ -95,7 +95,11 @@ resource "aws_batch_job_queue" "training" {
   name     = "chest-ct-training-queue"
   state    = "ENABLED"
   priority = 1
-  compute_environments = [aws_batch_compute_environment.training.arn]
+  
+  compute_environment_order {
+    order               = 1
+    compute_environment = aws_batch_compute_environment.training.arn
+  }
 }
 
 # Batch Job Definition
@@ -107,8 +111,8 @@ resource "aws_batch_job_definition" "retraining" {
     image = "${aws_ecr_repository.training.repository_url}:latest"
     
     resourceRequirements = [
-      { type = "VCPU", value = var.job_vcpus },
-      { type = "MEMORY", value = var.job_memory }
+      { type = "VCPU", value = tostring(var.job_vcpus) },
+      { type = "MEMORY", value = tostring(var.job_memory) }
     ]
     
     environment = [

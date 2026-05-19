@@ -25,11 +25,13 @@ variable "data_bucket" {
 
 variable "job_vcpus" {
   description = "vCPUs for Batch job"
+  type        = number
   default     = 4
 }
 
 variable "job_memory" {
   description = "Memory for Batch job (MB)"
+  type        = number
   default     = 16384
 }
 
@@ -45,9 +47,15 @@ variable "jenkins_token" {
   sensitive   = true
 }
 
-# ADD THIS MISSING VARIABLE
 variable "instance_types" {
   description = "EC2 instance types for Batch compute environment"
   type        = list(string)
   default     = ["g4dn.xlarge", "c5.xlarge"]
+}
+
+# ADD THIS VARIABLE
+variable "max_vcpus" {
+  description = "Maximum vCPUs for Batch compute environment"
+  type        = number
+  default     = 16
 }
