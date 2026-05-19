@@ -1,5 +1,15 @@
-# Copy this to terraform.tfvars and update values
+cd chest-ct-ecs-CT/terraform-batch
+
+# Create the file with ALL your values
+cat > terraform.tfvars << 'EOF'
+aws_region    = "us-east-1"
 vpc_id        = "vpc-12345678"
 subnet_ids    = ["subnet-12345678", "subnet-87654321"]
 jenkins_url   = "http://100.51.185.244:8080"
 jenkins_token = "ct-trigger-token"
+model_bucket  = "chest-ct-models-155407238003"
+data_bucket   = "chest-ct-raw-data"
+job_vcpus     = 4
+job_memory    = 16384
+instance_types = ["g4dn.xlarge", "c5.xlarge"]
+EOF
