@@ -17,7 +17,27 @@ resource "aws_ecr_repository" "training" {
   force_delete = true
 }
 
-# IAM Role for Batch
+# IAM Role for Batch Service (for Batch to call AWS services)
+resource "aws_iam_role" "batch_service_role" {
+  name = "chest-ct-batch-service-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "batch.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "batch_service_role_policy" {
+  role       = aws_iam_role.batch_service_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
+}
+
+# IAM Role for EC2 instances (for Batch compute resources)
 resource "aws_iam_role" "batch_role" {
   name = "chest-ct-batch-role"
   assume_role_policy = jsonencode({
@@ -74,7 +94,7 @@ resource "aws_security_group" "batch" {
 resource "aws_batch_compute_environment" "training" {
   compute_environment_name = "chest-ct-training-env"
   type                     = "MANAGED"
-  service_role             = "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
+  service_role             = aws_iam_role.batch_service_role.arn
 
   compute_resources {
     type                = "EC2"
