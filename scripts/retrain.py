@@ -22,6 +22,7 @@ DATA_BUCKET = os.environ.get('DATA_BUCKET', 'chest-ct-raw-data')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 JENKINS_URL = os.environ.get('JENKINS_URL', 'http://your-jenkins-ip:8080')
 JENKINS_TOKEN = os.environ.get('JENKINS_TOKEN', 'ct-trigger-token')
+JOB_NAME = "Gajanan Wagalgave"  # Your Jenkins pipeline job name
 
 # Local paths
 CURRENT_MODEL_PATH = '/tmp/current_model.h5'
@@ -32,13 +33,24 @@ EPOCHS = 5  # Small number for testing
 
 
 def trigger_jenkins():
-    """Trigger Jenkins deployment"""
+    """Trigger Jenkins deployment using remote build trigger"""
     try:
-        url = f"{JENKINS_URL}/generic-webhook-trigger/invoke"
-        params = {'token': JENKINS_TOKEN}
-        response = requests.post(url, params=params, timeout=30)
-        logger.info(f"✅ Jenkins triggered: {response.status_code}")
-        return True
+        # Correct URL for "Trigger builds remotely" option
+        url = f"{JENKINS_URL}/job/{JOB_NAME}/build?token={JENKINS_TOKEN}"
+        
+        logger.info(f"🔔 Triggering Jenkins at: {url}")
+        response = requests.post(url, timeout=30)
+        
+        if response.status_code == 201:
+            logger.info("✅ Jenkins build triggered successfully!")
+            return True
+        elif response.status_code == 403:
+            logger.error("❌ Jenkins returned 403 - Authentication required.")
+            logger.info("💡 Add username/password or API token to the request")
+            return False
+        else:
+            logger.error(f"❌ Jenkins trigger failed: {response.status_code}")
+            return False
     except Exception as e:
         logger.error(f"❌ Failed to trigger Jenkins: {e}")
         return False
@@ -136,7 +148,7 @@ def main():
     # Step 1: Download existing model (if any)
     current_model = download_current_model()
     if current_model:
-        logger.info(f"Current model summary: {current_model.summary()}")
+        logger.info("✅ Current model loaded")
     
     # Step 2: Download new training data
     has_data = download_training_data()
@@ -149,7 +161,6 @@ def main():
     model = create_model()
     
     # Step 4: Save model (In real scenario, you would train here)
-    # For now, we're just saving the untrained model as a placeholder
     # TODO: Add actual model.fit() with your training data
     model.save(NEW_MODEL_PATH)
     logger.info(f"✅ Model saved to {NEW_MODEL_PATH}")
