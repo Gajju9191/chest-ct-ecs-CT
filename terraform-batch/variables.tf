@@ -3,6 +3,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "environment" {
+  description = "Environment name (e.g., production, staging, dev)"
+  type        = string
+  default     = "production"
+}
+
 variable "vpc_id" {
   description = "VPC ID for Batch compute environment"
   type        = string
@@ -38,7 +44,7 @@ variable "job_memory" {
 variable "instance_types" {
   description = "EC2 instance types for Batch compute environment"
   type        = list(string)
-  default     = ["g4dn.xlarge", "c5.xlarge"]
+  default     = ["g4dn.xlarge", "g4dn.2xlarge", "g4dn.4xlarge", "g5.xlarge", "g5.2xlarge", "c5.xlarge", "c5.2xlarge", "c5.4xlarge"]
 }
 
 variable "max_vcpus" {
