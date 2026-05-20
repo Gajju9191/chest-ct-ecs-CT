@@ -1,0 +1,841 @@
+{
+  "version": 4,
+  "terraform_version": "1.15.2",
+  "serial": 50,
+  "lineage": "d9e329f9-2c07-3f46-0d88-117548def657",
+  "outputs": {
+    "batch_job_definition": {
+      "value": "chest-ct-retraining",
+      "type": "string"
+    },
+    "batch_job_queue": {
+      "value": "chest-ct-training-queue",
+      "type": "string"
+    },
+    "ecr_repository_url": {
+      "value": "155407238003.dkr.ecr.us-east-1.amazonaws.com/chest-ct-training",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "data",
+      "type": "aws_caller_identity",
+      "name": "current",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "account_id": "155407238003",
+            "arn": "arn:aws:iam::155407238003:user/chest-s3",
+            "id": "155407238003",
+            "user_id": "AIDASILX6INZW5DZRCBBW"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_batch_compute_environment",
+      "name": "training",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:batch:us-east-1:155407238003:compute-environment/chest-ct-training-env",
+            "compute_environment_name": "chest-ct-training-env",
+            "compute_environment_name_prefix": "",
+            "compute_resources": [
+              {
+                "allocation_strategy": "BEST_FIT_PROGRESSIVE",
+                "bid_percentage": 0,
+                "desired_vcpus": 0,
+                "ec2_configuration": [
+                  {
+                    "image_id_override": "",
+                    "image_type": "ECS_AL2023"
+                  },
+                  {
+                    "image_id_override": "",
+                    "image_type": "ECS_AL2023_NVIDIA"
+                  }
+                ],
+                "ec2_key_pair": "",
+                "image_id": "",
+                "instance_role": "arn:aws:iam::155407238003:instance-profile/chest-ct-batch-profile",
+                "instance_type": [
+                  "c5.2xlarge",
+                  "c5.4xlarge",
+                  "c5.xlarge",
+                  "g4dn.2xlarge",
+                  "g4dn.4xlarge",
+                  "g4dn.xlarge",
+                  "g5.2xlarge",
+                  "g5.xlarge"
+                ],
+                "launch_template": [],
+                "max_vcpus": 16,
+                "min_vcpus": 0,
+                "placement_group": "",
+                "security_group_ids": [
+                  "sg-0fc713a096c67769f"
+                ],
+                "spot_iam_fleet_role": "",
+                "subnets": [
+                  "subnet-023dcb5c63e676307",
+                  "subnet-089c7ef7cb58b14a2"
+                ],
+                "tags": {},
+                "type": "EC2"
+              }
+            ],
+            "ecs_cluster_arn": "arn:aws:ecs:us-east-1:155407238003:cluster/chest-ct-training-env_Batch_a5b55ea1-0673-31b8-8f04-6fd1b99a4625",
+            "eks_configuration": [],
+            "id": "chest-ct-training-env",
+            "service_role": "arn:aws:iam::155407238003:role/chest-ct-batch-service-role",
+            "state": "ENABLED",
+            "status": "VALID",
+            "status_reason": "ComputeEnvironment Healthy",
+            "tags": {},
+            "tags_all": {},
+            "type": "MANAGED",
+            "update_policy": []
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_instance_profile.batch_profile",
+            "aws_iam_role.batch_role",
+            "aws_iam_role.batch_service_role",
+            "aws_security_group.batch"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_batch_job_definition",
+      "name": "retraining",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:batch:us-east-1:155407238003:job-definition/chest-ct-retraining:3",
+            "arn_prefix": "arn:aws:batch:us-east-1:155407238003:job-definition/chest-ct-retraining",
+            "container_properties": "{\"command\":[],\"environment\":[{\"name\":\"AWS_REGION\",\"value\":\"us-east-1\"},{\"name\":\"DATA_BUCKET\",\"value\":\"chest-ct-raw-data\"},{\"name\":\"JENKINS_API_TOKEN\",\"value\":\"11962177b9aca3a01e06f29b47aaa78154\"},{\"name\":\"JENKINS_TOKEN\",\"value\":\"ct-trigger-token\"},{\"name\":\"JENKINS_URL\",\"value\":\"http://100.51.185.244:8080\"},{\"name\":\"JENKINS_USERNAME\",\"value\":\"Gajanan Wagalgave\"},{\"name\":\"MODEL_BUCKET\",\"value\":\"chest-ct-models-155407238003\"}],\"executionRoleArn\":\"arn:aws:iam::155407238003:role/chest-ct-batch-role\",\"image\":\"155407238003.dkr.ecr.us-east-1.amazonaws.com/chest-ct-training:latest\",\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/aws/batch/chest-ct-retraining\",\"awslogs-region\":\"us-east-1\"},\"secretOptions\":[]},\"mountPoints\":[],\"resourceRequirements\":[{\"type\":\"VCPU\",\"value\":\"4\"},{\"type\":\"MEMORY\",\"value\":\"16384\"}],\"secrets\":[],\"ulimits\":[],\"volumes\":[]}",
+            "deregister_on_new_revision": true,
+            "ecs_properties": "",
+            "eks_properties": [],
+            "id": "arn:aws:batch:us-east-1:155407238003:job-definition/chest-ct-retraining:3",
+            "name": "chest-ct-retraining",
+            "node_properties": "",
+            "parameters": {},
+            "platform_capabilities": [],
+            "propagate_tags": false,
+            "retry_strategy": [],
+            "revision": 3,
+            "scheduling_priority": 0,
+            "tags": {},
+            "tags_all": {},
+            "timeout": [],
+            "type": "container"
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "container_properties"
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_ecr_repository.training",
+            "aws_iam_role.batch_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_batch_job_queue",
+      "name": "training",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:batch:us-east-1:155407238003:job-queue/chest-ct-training-queue",
+            "compute_environment_order": [
+              {
+                "compute_environment": "arn:aws:batch:us-east-1:155407238003:compute-environment/chest-ct-training-env",
+                "order": 1
+              }
+            ],
+            "compute_environments": null,
+            "id": "arn:aws:batch:us-east-1:155407238003:job-queue/chest-ct-training-queue",
+            "job_state_time_limit_action": [],
+            "name": "chest-ct-training-queue",
+            "priority": 1,
+            "scheduling_policy_arn": null,
+            "state": "ENABLED",
+            "tags": null,
+            "tags_all": {},
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "dependencies": [
+            "aws_batch_compute_environment.training",
+            "aws_iam_instance_profile.batch_profile",
+            "aws_iam_role.batch_role",
+            "aws_iam_role.batch_service_role",
+            "aws_security_group.batch"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_event_rule",
+      "name": "daily_retraining",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:events:us-east-1:155407238003:rule/chest-ct-daily-retraining",
+            "description": "Trigger retraining daily at 1 PM UTC",
+            "event_bus_name": "default",
+            "event_pattern": null,
+            "force_destroy": false,
+            "id": "chest-ct-daily-retraining",
+            "is_enabled": true,
+            "name": "chest-ct-daily-retraining",
+            "name_prefix": "",
+            "role_arn": "",
+            "schedule_expression": "cron(0 13 * * ? *)",
+            "state": "ENABLED",
+            "tags": {},
+            "tags_all": {}
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_event_target",
+      "name": "batch_job",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "appsync_target": [],
+            "arn": "arn:aws:batch:us-east-1:155407238003:job-queue/chest-ct-training-queue",
+            "batch_target": [
+              {
+                "array_size": 0,
+                "job_attempts": 0,
+                "job_definition": "arn:aws:batch:us-east-1:155407238003:job-definition/chest-ct-retraining:3",
+                "job_name": "chest-ct-retraining-20260520-1205"
+              }
+            ],
+            "dead_letter_config": [],
+            "ecs_target": [],
+            "event_bus_name": "default",
+            "force_destroy": false,
+            "http_target": [],
+            "id": "chest-ct-daily-retraining-SubmitBatchJob",
+            "input": "",
+            "input_path": "",
+            "input_transformer": [],
+            "kinesis_target": [],
+            "redshift_target": [],
+            "retry_policy": [],
+            "role_arn": "arn:aws:iam::155407238003:role/chest-ct-eventbridge-role",
+            "rule": "chest-ct-daily-retraining",
+            "run_command_targets": [],
+            "sagemaker_pipeline_target": [],
+            "sqs_target": [],
+            "target_id": "SubmitBatchJob"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjEifQ==",
+          "dependencies": [
+            "aws_batch_compute_environment.training",
+            "aws_batch_job_definition.retraining",
+            "aws_batch_job_queue.training",
+            "aws_cloudwatch_event_rule.daily_retraining",
+            "aws_ecr_repository.training",
+            "aws_iam_instance_profile.batch_profile",
+            "aws_iam_role.batch_role",
+            "aws_iam_role.batch_service_role",
+            "aws_iam_role.eventbridge_role",
+            "aws_security_group.batch"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_cloudwatch_log_group",
+      "name": "batch",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:logs:us-east-1:155407238003:log-group:/aws/batch/chest-ct-retraining",
+            "id": "/aws/batch/chest-ct-retraining",
+            "kms_key_id": "",
+            "log_group_class": "STANDARD",
+            "name": "/aws/batch/chest-ct-retraining",
+            "name_prefix": "",
+            "retention_in_days": 30,
+            "skip_destroy": false,
+            "tags": {},
+            "tags_all": {}
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_codebuild_project",
+      "name": "training",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:codebuild:us-east-1:155407238003:project/chest-ct-training-build",
+            "artifacts": [
+              {
+                "artifact_identifier": "",
+                "bucket_owner_access": "",
+                "encryption_disabled": false,
+                "location": "",
+                "name": "",
+                "namespace_type": "",
+                "override_artifact_name": false,
+                "packaging": "",
+                "path": "",
+                "type": "NO_ARTIFACTS"
+              }
+            ],
+            "badge_enabled": false,
+            "badge_url": "",
+            "build_batch_config": [],
+            "build_timeout": 60,
+            "cache": [
+              {
+                "location": "",
+                "modes": [],
+                "type": "NO_CACHE"
+              }
+            ],
+            "concurrent_build_limit": 0,
+            "description": "",
+            "encryption_key": "arn:aws:kms:us-east-1:155407238003:alias/aws/s3",
+            "environment": [
+              {
+                "certificate": "",
+                "compute_type": "BUILD_GENERAL1_MEDIUM",
+                "environment_variable": [],
+                "fleet": [],
+                "image": "aws/codebuild/standard:7.0",
+                "image_pull_credentials_type": "CODEBUILD",
+                "privileged_mode": false,
+                "registry_credential": [],
+                "type": "LINUX_CONTAINER"
+              }
+            ],
+            "file_system_locations": [],
+            "id": "chest-ct-training-build",
+            "logs_config": [],
+            "name": "chest-ct-training-build",
+            "project_visibility": "PRIVATE",
+            "public_project_alias": "",
+            "queued_timeout": 480,
+            "resource_access_role": "",
+            "secondary_artifacts": [],
+            "secondary_source_version": [],
+            "secondary_sources": [],
+            "service_role": "arn:aws:iam::155407238003:role/CodeBuild-CT-Role",
+            "source": [
+              {
+                "auth": [],
+                "build_status_config": [],
+                "buildspec": "",
+                "git_clone_depth": 0,
+                "git_submodules_config": [],
+                "insecure_ssl": false,
+                "location": "https://github.com/Gajju9191/chest-ct-ecs-CT.git",
+                "report_build_status": false,
+                "type": "GITHUB"
+              }
+            ],
+            "source_version": "",
+            "tags": {},
+            "tags_all": {},
+            "vpc_config": []
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjAifQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecr_repository",
+      "name": "training",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ecr:us-east-1:155407238003:repository/chest-ct-training",
+            "encryption_configuration": [
+              {
+                "encryption_type": "AES256",
+                "kms_key": ""
+              }
+            ],
+            "force_delete": true,
+            "id": "chest-ct-training",
+            "image_scanning_configuration": [
+              {
+                "scan_on_push": false
+              }
+            ],
+            "image_tag_mutability": "MUTABLE",
+            "name": "chest-ct-training",
+            "registry_id": "155407238003",
+            "repository_url": "155407238003.dkr.ecr.us-east-1.amazonaws.com/chest-ct-training",
+            "tags": {},
+            "tags_all": {},
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_instance_profile",
+      "name": "batch_profile",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::155407238003:instance-profile/chest-ct-batch-profile",
+            "create_date": "2026-05-19T13:24:35Z",
+            "id": "chest-ct-batch-profile",
+            "name": "chest-ct-batch-profile",
+            "name_prefix": "",
+            "path": "/",
+            "role": "chest-ct-batch-role",
+            "tags": {},
+            "tags_all": {},
+            "unique_id": "AIPASILX6INZQ5LUOCLXH"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "codebuild_ecr_push",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::155407238003:policy/ECRPushPolicy",
+            "attachment_count": 1,
+            "description": "",
+            "id": "arn:aws:iam::155407238003:policy/ECRPushPolicy",
+            "name": "ECRPushPolicy",
+            "name_prefix": "",
+            "path": "/",
+            "policy": "{\"Statement\":[{\"Action\":[\"ecr:GetAuthorizationToken\",\"ecr:BatchCheckLayerAvailability\",\"ecr:PutImage\",\"ecr:InitiateLayerUpload\",\"ecr:UploadLayerPart\",\"ecr:CompleteLayerUpload\"],\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}",
+            "policy_id": "ANPASILX6INZ6QQPWPBVY",
+            "tags": {},
+            "tags_all": {}
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjAifQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "batch_role",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::155407238003:role/chest-ct-batch-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ec2.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2026-05-19T13:24:33Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "chest-ct-batch-role",
+            "inline_policy": [],
+            "managed_policy_arns": [
+              "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+              "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+              "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+            ],
+            "max_session_duration": 3600,
+            "name": "chest-ct-batch-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {},
+            "tags_all": {},
+            "unique_id": "AROASILX6INZ54HX6UWYF"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "batch_service_role",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::155407238003:role/chest-ct-batch-service-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"batch.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2026-05-19T13:41:29Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "chest-ct-batch-service-role",
+            "inline_policy": [],
+            "managed_policy_arns": [
+              "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
+            ],
+            "max_session_duration": 3600,
+            "name": "chest-ct-batch-service-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {},
+            "tags_all": {},
+            "unique_id": "AROASILX6INZ4LHMD4EBX"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "codebuild_role",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::155407238003:role/CodeBuild-CT-Role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"codebuild.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2026-05-20T10:36:31Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "CodeBuild-CT-Role",
+            "inline_policy": [],
+            "managed_policy_arns": [
+              "arn:aws:iam::155407238003:policy/ECRPushPolicy",
+              "arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess",
+              "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+            ],
+            "max_session_duration": 3600,
+            "name": "CodeBuild-CT-Role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {},
+            "tags_all": {},
+            "unique_id": "AROASILX6INZX5DP2IG2U"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJzY2hlbWFfdmVyc2lvbiI6IjAifQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "eventbridge_role",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::155407238003:role/chest-ct-eventbridge-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2026-05-19T13:24:33Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "chest-ct-eventbridge-role",
+            "inline_policy": [
+              {
+                "name": "chest-ct-eventbridge-policy",
+                "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":\"batch:SubmitJob\",\"Effect\":\"Allow\",\"Resource\":\"*\"}]}"
+              }
+            ],
+            "managed_policy_arns": [],
+            "max_session_duration": 3600,
+            "name": "chest-ct-eventbridge-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {},
+            "tags_all": {},
+            "unique_id": "AROASILX6INZ37K5TL66A"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "eventbridge_policy",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "chest-ct-eventbridge-role:chest-ct-eventbridge-policy",
+            "name": "chest-ct-eventbridge-policy",
+            "name_prefix": "",
+            "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":\"batch:SubmitJob\",\"Effect\":\"Allow\",\"Resource\":\"*\"}]}",
+            "role": "chest-ct-eventbridge-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.eventbridge_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "batch_ecr",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "chest-ct-batch-role-20260519132435009400000001",
+            "policy_arn": "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+            "role": "chest-ct-batch-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "batch_logs",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "chest-ct-batch-role-20260519132435080500000002",
+            "policy_arn": "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess",
+            "role": "chest-ct-batch-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "batch_s3",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "chest-ct-batch-role-20260519132435210000000003",
+            "policy_arn": "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+            "role": "chest-ct-batch-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "batch_service_role_policy",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "chest-ct-batch-service-role-20260519134130442200000001",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole",
+            "role": "chest-ct-batch-service-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.batch_service_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "codebuild_developer",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "CodeBuild-CT-Role-20260520120555958500000002",
+            "policy_arn": "arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess",
+            "role": "CodeBuild-CT-Role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.codebuild_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "codebuild_logs",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "CodeBuild-CT-Role-20260520120555702200000001",
+            "policy_arn": "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess",
+            "role": "CodeBuild-CT-Role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.codebuild_role"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "batch",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:155407238003:security-group/sg-0fc713a096c67769f",
+            "description": "Security group for Batch compute",
+            "egress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "",
+                "from_port": 0,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "-1",
+                "security_groups": [],
+                "self": false,
+                "to_port": 0
+              }
+            ],
+            "id": "sg-0fc713a096c67769f",
+            "ingress": [],
+            "name": "chest-ct-batch-sg",
+            "name_prefix": "",
+            "owner_id": "155407238003",
+            "revoke_rules_on_delete": false,
+            "tags": {},
+            "tags_all": {},
+            "timeouts": null,
+            "vpc_id": "vpc-0e6c151b380cab742"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0="
+        }
+      ]
+    }
+  ],
+  "check_results": null
+}

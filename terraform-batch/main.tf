@@ -90,7 +90,7 @@ resource "aws_security_group" "batch" {
   }
 }
 
-# Batch Compute Environment (On-Demand - guaranteed capacity)
+# Batch Compute Environment (On-Demand only - guaranteed capacity)
 resource "aws_batch_compute_environment" "training" {
   compute_environment_name = "chest-ct-training-env"
   type                     = "MANAGED"
@@ -98,15 +98,17 @@ resource "aws_batch_compute_environment" "training" {
 
   compute_resources {
     type                = "EC2"
+    allocation_strategy = "BEST_FIT_PROGRESSIVE"
     max_vcpus           = var.max_vcpus
     min_vcpus           = 0
-    desired_vcpus       = 0
+    desired_vcpus       = 2  # Force initial scaling
     instance_role       = aws_iam_instance_profile.batch_profile.arn
-    # bid_percentage removed - using On-Demand for guaranteed capacity
     instance_type       = var.instance_types
     subnets             = var.subnet_ids
     security_group_ids  = [aws_security_group.batch.id]
-    allocation_strategy = "BEST_FIT_PROGRESSIVE"
+    
+    # Explicitly set On-Demand (no Spot)
+    bid_percentage = 0
   }
 }
 
