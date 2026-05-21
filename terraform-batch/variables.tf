@@ -44,13 +44,13 @@ variable "job_memory" {
 variable "instance_types" {
   description = "EC2 instance types for Batch compute environment"
   type        = list(string)
-  default     = ["g4dn.xlarge", "g4dn.2xlarge", "g4dn.4xlarge", "g5.xlarge", "g5.2xlarge", "c5.xlarge", "c5.2xlarge", "c5.4xlarge"]
+  default     = ["c5.xlarge", "c5.2xlarge", "c5.4xlarge", "m5.xlarge", "m5.2xlarge"]
 }
 
 variable "max_vcpus" {
   description = "Maximum vCPUs for Batch compute environment"
   type        = number
-  default     = 16
+  default     = 8
 }
 
 variable "jenkins_url" {
