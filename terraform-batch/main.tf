@@ -22,13 +22,15 @@ resource "aws_iam_role" "batch_service_role" {
   name = "chest-ct-batch-service-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "batch.amazonaws.com"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "batch.amazonaws.com"
+        }
       }
-    }]
+    ]
   })
 }
 
@@ -38,17 +40,27 @@ resource "aws_iam_role_policy_attachment" "batch_service_role_policy" {
 }
 
 # IAM Role for EC2 instances (for Batch compute resources)
+# Updated with correct trust relationship for ECS tasks
 resource "aws_iam_role" "batch_role" {
   name = "chest-ct-batch-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      },
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
       }
-    }]
+    ]
   })
 }
 
@@ -101,7 +113,7 @@ resource "aws_batch_compute_environment" "training" {
     allocation_strategy = "BEST_FIT_PROGRESSIVE"
     max_vcpus           = var.max_vcpus
     min_vcpus           = 0
-    desired_vcpus       = 2  # Force initial scaling
+    desired_vcpus       = 2
     instance_role       = aws_iam_instance_profile.batch_profile.arn
     instance_type       = var.instance_types
     subnets             = var.subnet_ids
@@ -177,13 +189,15 @@ resource "aws_iam_role" "eventbridge_role" {
   name = "chest-ct-eventbridge-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "events.amazonaws.com"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
       }
-    }]
+    ]
   })
 }
 
@@ -192,11 +206,13 @@ resource "aws_iam_role_policy" "eventbridge_policy" {
   role = aws_iam_role.eventbridge_role.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = "batch:SubmitJob"
-      Resource = "*"
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "batch:SubmitJob"
+        Resource = "*"
+      }
+    ]
   })
 }
 
