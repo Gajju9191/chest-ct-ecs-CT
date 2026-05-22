@@ -246,3 +246,13 @@ Thumbs.db
 # Data
 data/
 *.zip
+
+
+# Common image formats
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.webp

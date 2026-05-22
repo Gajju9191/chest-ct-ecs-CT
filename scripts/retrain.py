@@ -6,12 +6,13 @@ AWS Batch Retraining Script with DAGsHub MLflow Tracking
 import boto3
 import tensorflow as tf
 import mlflow
-import mlflow.tensorflow  # Fixed: use tensorflow instead of keras
+import mlflow.tensorflow
 import os
 import requests
 import json
 import logging
 import numpy as np
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
@@ -82,26 +83,29 @@ def download_current_model():
 
 
 def download_training_data():
-    """Download new chest CT data from S3"""
+    """Download and extract training data from zip file"""
     s3 = boto3.client('s3')
     Path(DATA_PATH).mkdir(parents=True, exist_ok=True)
     
     try:
-        paginator = s3.get_paginator('list_objects_v2')
-        pages = paginator.paginate(Bucket=DATA_BUCKET, Prefix='training/')
+        # Download the zip file
+        zip_path = '/tmp/chest-data.zip'
+        s3.download_file(DATA_BUCKET, 'chest-data.zip', zip_path)
+        logger.info("✅ Downloaded chest-data.zip")
         
+        # Extract the zip file
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(DATA_PATH)
+        logger.info(f"✅ Extracted zip to {DATA_PATH}")
+        
+        # Count extracted files
         file_count = 0
-        for page in pages:
-            if 'Contents' not in page:
-                continue
-            for obj in page['Contents']:
-                key = obj['Key']
-                local_file = Path(DATA_PATH) / key.replace('training/', '')
-                local_file.parent.mkdir(parents=True, exist_ok=True)
-                s3.download_file(DATA_BUCKET, key, str(local_file))
-                file_count += 1
+        for root, dirs, files in os.walk(DATA_PATH):
+            for file in files:
+                if file.endswith(('.png', '.jpg', '.jpeg', '.dcm')):
+                    file_count += 1
         
-        logger.info(f"✅ Downloaded {file_count} new files for fine-tuning")
+        logger.info(f"✅ Found {file_count} training images")
         return file_count > 0
     except Exception as e:
         logger.error(f"❌ Data download failed: {e}")
@@ -184,10 +188,10 @@ def main():
         existing_model = download_current_model()
         mlflow.log_param("using_base_model", existing_model is not None)
         
-        # Step 2: Download new training data
+        # Step 2: Download and extract training data
         has_data = download_training_data()
         if not has_data:
-            logger.warning("⚠️ No new data found. Skipping retraining.")
+            logger.warning("⚠️ No training data found. Skipping retraining.")
             return
         
         # Step 3: Create or fine-tune model
@@ -202,7 +206,7 @@ def main():
         model.save(NEW_MODEL_PATH)
         logger.info(f"✅ Model saved to {NEW_MODEL_PATH}")
         
-        # Log model to MLflow - FIXED: use tensorflow instead of keras
+        # Log model to MLflow
         mlflow.tensorflow.log_model(model, "chest-ct-model")
         
         # Step 5: Upload to S3 with versioning
