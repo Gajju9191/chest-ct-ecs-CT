@@ -136,7 +136,7 @@ resource "aws_batch_job_queue" "training" {
   }
 }
 
-# Batch Job Definition
+# Batch Job Definition (Updated with DAGsHub MLflow environment variables)
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
   type = "container"
@@ -156,7 +156,11 @@ resource "aws_batch_job_definition" "retraining" {
       { name = "JENKINS_URL", value = var.jenkins_url },
       { name = "JENKINS_TOKEN", value = var.jenkins_token },
       { name = "JENKINS_USERNAME", value = var.jenkins_username },
-      { name = "JENKINS_API_TOKEN", value = var.jenkins_api_token }
+      { name = "JENKINS_API_TOKEN", value = var.jenkins_api_token },
+      # DAGsHub MLflow Configuration
+      { name = "MLFLOW_TRACKING_URI", value = "https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow" },
+      { name = "MLFLOW_TRACKING_USERNAME", value = "Gajju9191" },
+      { name = "MLFLOW_TRACKING_PASSWORD", value = var.dagshub_token }
     ]
     
     executionRoleArn = aws_iam_role.batch_role.arn

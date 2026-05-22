@@ -76,3 +76,10 @@ variable "jenkins_api_token" {
   type        = string
   sensitive   = true
 }
+
+# DAGsHub MLflow Configuration
+variable "dagshub_token" {
+  description = "DAGsHub access token for MLflow tracking"
+  type        = string
+  sensitive   = true
+}
