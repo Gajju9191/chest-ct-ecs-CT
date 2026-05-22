@@ -160,6 +160,14 @@ def upload_model_to_s3(model_path):
     )
     logger.info("✅ Updated production model in S3")
     
+    # Also copy to root path for Jenkins compatibility
+    s3.copy_object(
+        CopySource=copy_source,
+        Bucket=MODEL_BUCKET,
+        Key='model.h5'
+    )
+    logger.info("✅ Copied model to root path for Jenkins")
+    
     return version_key
 
 
