@@ -181,11 +181,11 @@ resource "aws_cloudwatch_log_group" "batch" {
   retention_in_days = 30
 }
 
-# Daily Schedule at 1 PM UTC
+# Daily Schedule at 2 PM IST (8:30 AM UTC)
 resource "aws_cloudwatch_event_rule" "daily_retraining" {
   name                = "chest-ct-daily-retraining"
-  description         = "Trigger retraining daily at 1 PM UTC"
-  schedule_expression = "cron(0 13 * * ? *)"
+  description         = "Trigger retraining daily at 2 PM IST (8:30 AM UTC)"
+  schedule_expression = "cron(30 8 * * ? *)"
 }
 
 # IAM Role for EventBridge
