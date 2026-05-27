@@ -39,6 +39,12 @@ resource "aws_iam_role_policy_attachment" "batch_service_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
 }
 
+# ADDED: ECS Full Access for Batch service role
+resource "aws_iam_role_policy_attachment" "batch_service_ecs_full" {
+  role       = aws_iam_role.batch_service_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+}
+
 # IAM Role for EC2 instances (for Batch compute resources)
 # Updated with correct trust relationship for ECS tasks
 resource "aws_iam_role" "batch_role" {
@@ -62,6 +68,12 @@ resource "aws_iam_role" "batch_role" {
       }
     ]
   })
+}
+
+# ADDED: ECS Full Access for batch role
+resource "aws_iam_role_policy_attachment" "batch_role_ecs_full" {
+  role       = aws_iam_role.batch_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
 }
 
 # S3 Access for Batch
