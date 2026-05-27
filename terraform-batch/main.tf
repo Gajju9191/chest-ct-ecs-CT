@@ -76,6 +76,43 @@ resource "aws_iam_role_policy_attachment" "batch_role_ecs_full" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
 }
 
+# ADDED: Additional ECS permissions for listing clusters (more specific)
+resource "aws_iam_policy" "ecs_list_policy" {
+  name        = "BatchECSListPolicy"
+  description = "Allow Batch to list ECS clusters and resources"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:ListClusters",
+          "ecs:DescribeClusters",
+          "ecs:ListContainerInstances",
+          "ecs:DescribeContainerInstances",
+          "ecs:ListTasks",
+          "ecs:DescribeTasks",
+          "ecs:RegisterContainerInstance",
+          "ecs:DeregisterContainerInstance"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach the custom ECS list policy to both roles
+resource "aws_iam_role_policy_attachment" "batch_service_ecs_list" {
+  role       = aws_iam_role.batch_service_role.name
+  policy_arn = aws_iam_policy.ecs_list_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "batch_role_ecs_list" {
+  role       = aws_iam_role.batch_role.name
+  policy_arn = aws_iam_policy.ecs_list_policy.arn
+}
+
 # S3 Access for Batch
 resource "aws_iam_role_policy_attachment" "batch_s3" {
   role       = aws_iam_role.batch_role.name
