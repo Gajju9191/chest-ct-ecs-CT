@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 MODEL_BUCKET = os.environ.get('MODEL_BUCKET', 'chest-ct-models-155407238003')
 DATA_BUCKET = os.environ.get('DATA_BUCKET', 'chest-ct-raw-data')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
-JENKINS_URL = os.environ.get('JENKINS_URL', 'http://100.51.185.244:8080')
+JENKINS_URL = os.environ.get('JENKINS_URL', 'http://52.200.52.132:8080')
 JENKINS_TOKEN = os.environ.get('JENKINS_TOKEN', 'ct-trigger-token')
 JENKINS_USERNAME = os.environ.get('JENKINS_USERNAME', 'Gajanan Wagalgave')
 JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '')
-JOB_NAME = "Gajanan Wagalgave"
+JOB_NAME = "first-chest-pipeline"
 
 # MLflow Remote Tracking Configuration (DAGsHub)
 MLFLOW_TRACKING_URI = os.environ.get('MLFLOW_TRACKING_URI', 'https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow')
@@ -54,14 +54,32 @@ LEARNING_RATE = 1e-5
 
 
 def trigger_jenkins():
-    """Trigger Jenkins deployment using remote build trigger"""
+    """Trigger Jenkins deployment with CSRF crumb handling"""
     try:
+        # First, get the CSRF crumb
+        crumb_url = f"{JENKINS_URL}/crumbIssuer/api/json"
+        crumb_resp = requests.get(crumb_url, timeout=10)
+        
+        headers = {}
+        if crumb_resp.status_code == 200:
+            crumb_data = crumb_resp.json()
+            crumb = crumb_data['crumb']
+            crumb_field = crumb_data['crumbRequestField']
+            headers = {crumb_field: crumb}
+            logger.info("✅ CSRF crumb obtained")
+        else:
+            logger.warning(f"Could not obtain CSRF crumb: {crumb_resp.status_code}")
+        
+        # Trigger the build
         url = f"{JENKINS_URL}/job/{JOB_NAME}/build?token={JENKINS_TOKEN}"
-        response = requests.post(url, timeout=30)
+        response = requests.post(url, headers=headers, timeout=30)
         
         if response.status_code == 201:
             logger.info("✅ Jenkins build triggered successfully!")
             return True
+        elif response.status_code == 403:
+            logger.error("❌ Jenkins returned 403 - CSRF protection may still be enabled")
+            return False
         else:
             logger.error(f"❌ Jenkins trigger failed: {response.status_code}")
             return False
