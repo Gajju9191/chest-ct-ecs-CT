@@ -17,7 +17,9 @@ resource "aws_ecr_repository" "training" {
   force_delete = true
 }
 
+# ============================================
 # IAM Role for Batch Service (for Batch to call AWS services)
+# ============================================
 resource "aws_iam_role" "batch_service_role" {
   name = "chest-ct-batch-service-role"
   assume_role_policy = jsonencode({
@@ -39,14 +41,20 @@ resource "aws_iam_role_policy_attachment" "batch_service_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole"
 }
 
-# ADDED: ECS Full Access for Batch service role
 resource "aws_iam_role_policy_attachment" "batch_service_ecs_full" {
   role       = aws_iam_role.batch_service_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
 }
 
+# ADDED: CloudWatch Logs for Batch service role
+resource "aws_iam_role_policy_attachment" "batch_service_cloudwatch" {
+  role       = aws_iam_role.batch_service_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+
+# ============================================
 # IAM Role for EC2 instances (for Batch compute resources)
-# Updated with correct trust relationship for ECS tasks
+# ============================================
 resource "aws_iam_role" "batch_role" {
   name = "chest-ct-batch-role"
   assume_role_policy = jsonencode({
@@ -70,13 +78,12 @@ resource "aws_iam_role" "batch_role" {
   })
 }
 
-# ADDED: ECS Full Access for batch role
 resource "aws_iam_role_policy_attachment" "batch_role_ecs_full" {
   role       = aws_iam_role.batch_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
 }
 
-# ADDED: Additional ECS permissions for listing clusters (more specific)
+# Custom ECS list policy
 resource "aws_iam_policy" "ecs_list_policy" {
   name        = "BatchECSListPolicy"
   description = "Allow Batch to list ECS clusters and resources"
@@ -102,7 +109,6 @@ resource "aws_iam_policy" "ecs_list_policy" {
   })
 }
 
-# Attach the custom ECS list policy to both roles
 resource "aws_iam_role_policy_attachment" "batch_service_ecs_list" {
   role       = aws_iam_role.batch_service_role.name
   policy_arn = aws_iam_policy.ecs_list_policy.arn
@@ -125,19 +131,23 @@ resource "aws_iam_role_policy_attachment" "batch_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# CloudWatch Logs Access
+# CloudWatch Logs Access for EC2 role
 resource "aws_iam_role_policy_attachment" "batch_logs" {
   role       = aws_iam_role.batch_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
+# ============================================
 # Instance Profile
+# ============================================
 resource "aws_iam_instance_profile" "batch_profile" {
   name = "chest-ct-batch-profile"
   role = aws_iam_role.batch_role.name
 }
 
+# ============================================
 # Security Group
+# ============================================
 resource "aws_security_group" "batch" {
   name        = "chest-ct-batch-sg"
   description = "Security group for Batch compute"
@@ -151,7 +161,9 @@ resource "aws_security_group" "batch" {
   }
 }
 
-# Batch Compute Environment (On-Demand only - guaranteed capacity)
+# ============================================
+# Batch Compute Environment
+# ============================================
 resource "aws_batch_compute_environment" "training" {
   compute_environment_name = "chest-ct-training-env"
   type                     = "MANAGED"
@@ -173,7 +185,9 @@ resource "aws_batch_compute_environment" "training" {
   }
 }
 
+# ============================================
 # Batch Job Queue
+# ============================================
 resource "aws_batch_job_queue" "training" {
   name     = "chest-ct-training-queue"
   state    = "ENABLED"
@@ -185,7 +199,9 @@ resource "aws_batch_job_queue" "training" {
   }
 }
 
-# Batch Job Definition (Updated with DAGsHub MLflow environment variables)
+# ============================================
+# Batch Job Definition
+# ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
   type = "container"
@@ -224,20 +240,26 @@ resource "aws_batch_job_definition" "retraining" {
   })
 }
 
+# ============================================
 # CloudWatch Log Group
+# ============================================
 resource "aws_cloudwatch_log_group" "batch" {
   name = "/aws/batch/chest-ct-retraining"
   retention_in_days = 30
 }
 
+# ============================================
 # Daily Schedule at 2 PM IST (8:30 AM UTC)
+# ============================================
 resource "aws_cloudwatch_event_rule" "daily_retraining" {
   name                = "chest-ct-daily-retraining"
   description         = "Trigger retraining daily at 2 PM IST (8:30 AM UTC)"
   schedule_expression = "cron(30 8 * * ? *)"
 }
 
+# ============================================
 # IAM Role for EventBridge
+# ============================================
 resource "aws_iam_role" "eventbridge_role" {
   name = "chest-ct-eventbridge-role"
   assume_role_policy = jsonencode({
@@ -269,7 +291,9 @@ resource "aws_iam_role_policy" "eventbridge_policy" {
   })
 }
 
+# ============================================
 # EventBridge Target
+# ============================================
 resource "aws_cloudwatch_event_target" "batch_job" {
   rule      = aws_cloudwatch_event_rule.daily_retraining.name
   target_id = "SubmitBatchJob"
