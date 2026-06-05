@@ -1,0 +1,32 @@
+
+name: Build Training Image
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Build and push to chest-ct-training
+        run: |
+          docker build -f Dockerfile.train -t chest-ct-training .
+          docker tag chest-ct-training:latest ${{ steps.login-ecr.outputs.registry }}/chest-ct-training:latest
+          docker push ${{ steps.login-ecr.outputs.registry }}/chest-ct-training:latest
