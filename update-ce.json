@@ -1,0 +1,12 @@
+{
+    "type": "EC2",
+    "allocationStrategy": "BEST_FIT_PROGRESSIVE",
+    "maxvCpus": 4,
+    "minvCpus": 0,
+    "desiredvCpus": 2,
+    "instanceTypes": ["c5.large", "c5.xlarge", "m5.large"],
+    "subnets": ["subnet-03e601cf985c1c75b", "subnet-0e45af08efa3728c1", "subnet-0617db4a1d83f35c3", "subnet-006e7bc4a6d45368a"],
+    "securityGroupIds": ["sg-05f1445fc8b9e43ec"],
+    "instanceRole": "arn:aws:iam::437619427369:instance-profile/chest-ct-batch-profile",
+    "bidPercentage": 0
+}

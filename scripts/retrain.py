@@ -16,6 +16,8 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +31,9 @@ JENKINS_TOKEN = os.environ.get('JENKINS_TOKEN', 'ct-trigger-token')
 JENKINS_USERNAME = os.environ.get('JENKINS_USERNAME', 'Gajanan Wagalgave')
 JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '118d61c306e6cdc524e373e47263b305b1')
 JOB_NAME = "first-chest-pipeline"
+
+# Performance threshold - minimum improvement required to deploy (percentage)
+IMPROVEMENT_THRESHOLD = 1.0  # 1% improvement required
 
 # MLflow Remote Tracking Configuration (DAGsHub)
 MLFLOW_TRACKING_URI = os.environ.get('MLFLOW_TRACKING_URI', 'https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow')
@@ -48,6 +53,7 @@ else:
 CURRENT_MODEL_PATH = '/tmp/current_model.h5'
 NEW_MODEL_PATH = '/tmp/new_model.h5'
 DATA_PATH = '/tmp/data/'
+VALIDATION_SPLIT = 0.2
 BATCH_SIZE = 32
 FINE_TUNE_EPOCHS = 10
 LEARNING_RATE = 1e-5
@@ -130,6 +136,29 @@ def download_training_data():
         return False
 
 
+def load_validation_data():
+    """Load validation data for model comparison"""
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+    
+    datagen = ImageDataGenerator(rescale=1./255, validation_split=VALIDATION_SPLIT)
+    
+    val_generator = datagen.flow_from_directory(
+        DATA_PATH,
+        target_size=(224, 224),
+        batch_size=BATCH_SIZE,
+        class_mode='categorical',
+        subset='validation'
+    )
+    
+    return val_generator
+
+
+def evaluate_model_accuracy(model, validation_generator):
+    """Evaluate model accuracy on validation data"""
+    loss, accuracy = model.evaluate(validation_generator, verbose=0)
+    return accuracy
+
+
 def create_scratch_model(input_shape=(224, 224, 3), num_classes=2):
     """
     Create a new model from scratch (only if no existing model exists)
@@ -157,6 +186,53 @@ def create_scratch_model(input_shape=(224, 224, 3), num_classes=2):
     
     logger.info("🆕 Created new model from scratch (MobileNetV2 base)")
     return model
+
+
+def compare_and_promote(new_model_path, old_model, validation_generator):
+    """
+    Compare new model vs old model on validation data.
+    Only promotes if accuracy improves by threshold.
+    Returns: (should_deploy, new_accuracy, old_accuracy)
+    """
+    # Load new model
+    new_model = tf.keras.models.load_model(new_model_path)
+    
+    # Evaluate new model
+    new_accuracy = evaluate_model_accuracy(new_model, validation_generator)
+    logger.info(f"📊 New Model Accuracy: {new_accuracy:.4f}")
+    
+    old_accuracy = 0
+    if old_model is not None:
+        # Evaluate old model
+        old_accuracy = evaluate_model_accuracy(old_model, validation_generator)
+        logger.info(f"📊 Old Model Accuracy: {old_accuracy:.4f}")
+        
+        # Calculate improvement percentage
+        if old_accuracy > 0:
+            improvement = ((new_accuracy - old_accuracy) / old_accuracy) * 100
+        else:
+            improvement = 100 if new_accuracy > 0 else 0
+        
+        logger.info(f"📈 Improvement: {improvement:+.2f}%")
+        
+        # Log comparison to MLflow
+        mlflow.log_metrics({
+            "new_model_accuracy": new_accuracy,
+            "old_model_accuracy": old_accuracy,
+            "improvement_percent": improvement
+        })
+        
+        # Check if improvement meets threshold
+        if improvement >= IMPROVEMENT_THRESHOLD:
+            logger.info(f"✅ New model is BETTER! Improvement of {improvement:.2f}% meets threshold of {IMPROVEMENT_THRESHOLD}%")
+            return True, new_accuracy, old_accuracy
+        else:
+            logger.info(f"⏸️ New model NOT better enough. Improvement {improvement:.2f}% < {IMPROVEMENT_THRESHOLD}% threshold")
+            return False, new_accuracy, old_accuracy
+    else:
+        # First model ever - deploy it
+        logger.info("🆕 First model - deploying to production.")
+        return True, new_accuracy, old_accuracy
 
 
 def upload_model_to_s3(model_path):
@@ -207,7 +283,8 @@ def main():
             "batch_size": BATCH_SIZE,
             "model_bucket": MODEL_BUCKET,
             "data_bucket": DATA_BUCKET,
-            "aws_region": AWS_REGION
+            "aws_region": AWS_REGION,
+            "improvement_threshold": IMPROVEMENT_THRESHOLD
         })
         
         # Step 1: Download existing trained model
@@ -220,7 +297,10 @@ def main():
             logger.warning("⚠️ No training data found. Skipping retraining.")
             return
         
-        # Step 3: Create or fine-tune model
+        # Step 3: Load validation data (for comparison)
+        validation_generator = load_validation_data()
+        
+        # Step 4: Create or fine-tune model
         if existing_model:
             logger.info("🔄 Using existing model as base")
             model = existing_model
@@ -228,23 +308,37 @@ def main():
             logger.info("🆕 No existing model. Training from scratch...")
             model = create_scratch_model()
         
-        # Step 4: Save model
+        # Step 5: Save model
         model.save(NEW_MODEL_PATH)
         logger.info(f"✅ Model saved to {NEW_MODEL_PATH}")
         
         # Log model to MLflow
         mlflow.tensorflow.log_model(model, "chest-ct-model")
         
-        # Step 5: Upload to S3 with versioning
+        # Step 6: Compare new model with old model
+        should_deploy, new_acc, old_acc = compare_and_promote(
+            NEW_MODEL_PATH, 
+            existing_model, 
+            validation_generator
+        )
+        mlflow.log_param("deployed", should_deploy)
+        
+        # Step 7: Upload to S3 with versioning (always save versioned copy)
         version = upload_model_to_s3(NEW_MODEL_PATH)
         mlflow.log_param("model_version", version)
         
-        # Step 6: Trigger Jenkins deployment
-        logger.info("🔔 Triggering Jenkins deployment...")
-        trigger_jenkins()
+        # Step 8: Trigger Jenkins deployment ONLY if model improved
+        if should_deploy:
+            logger.info("🔔 New model is better! Triggering Jenkins deployment...")
+            trigger_jenkins()
+        else:
+            logger.info("📌 Model not deployed - no significant improvement detected")
         
         logger.info("=" * 60)
-        logger.info(f"✅ Fine-tuning complete! Model version: {version}")
+        if should_deploy:
+            logger.info(f"✅ Fine-tuning complete! New model version: {version} DEPLOYED")
+        else:
+            logger.info(f"✅ Fine-tuning complete! Model version: {version} (NOT DEPLOYED - no improvement)")
         logger.info("=" * 60)
 
 
