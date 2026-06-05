@@ -19,14 +19,17 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
-variable "model_bucket" {
-  description = "S3 bucket for models"
-  default     = "chest-ct-models-155407238003"
+# S3 Buckets for CT Pipeline
+variable "models_bucket" {
+  description = "S3 bucket for trained models"
+  type        = string
+  default     = "chest-ct-models-155407238004"
 }
 
-variable "data_bucket" {
-  description = "S3 bucket for training data"
-  default     = "chest-ct-raw-data"
+variable "raw_data_bucket" {
+  description = "S3 bucket for raw training data"
+  type        = string
+  default     = "chest-models-gajju"
 }
 
 variable "job_vcpus" {

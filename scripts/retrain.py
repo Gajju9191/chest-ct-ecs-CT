@@ -21,19 +21,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration - Get from environment variables
-MODEL_BUCKET = os.environ.get('MODEL_BUCKET', 'chest-ct-models-155407238003')
-DATA_BUCKET = os.environ.get('DATA_BUCKET', 'chest-ct-raw-data')
+MODEL_BUCKET = os.environ.get('MODEL_BUCKET', 'chest-ct-models-155407238004')
+DATA_BUCKET = os.environ.get('DATA_BUCKET', 'chest-models-gajju')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
-JENKINS_URL = os.environ.get('JENKINS_URL', 'http://52.200.52.132:8080')
+JENKINS_URL = os.environ.get('JENKINS_URL', 'http://52.91.160.186:8080')
 JENKINS_TOKEN = os.environ.get('JENKINS_TOKEN', 'ct-trigger-token')
 JENKINS_USERNAME = os.environ.get('JENKINS_USERNAME', 'Gajanan Wagalgave')
-JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '')
+JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '118d61c306e6cdc524e373e47263b305b1')
 JOB_NAME = "first-chest-pipeline"
 
 # MLflow Remote Tracking Configuration (DAGsHub)
 MLFLOW_TRACKING_URI = os.environ.get('MLFLOW_TRACKING_URI', 'https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow')
 MLFLOW_TRACKING_USERNAME = os.environ.get('MLFLOW_TRACKING_USERNAME', 'Gajju9191')
-MLFLOW_TRACKING_PASSWORD = os.environ.get('MLFLOW_TRACKING_PASSWORD', '')
+MLFLOW_TRACKING_PASSWORD = os.environ.get('MLFLOW_TRACKING_PASSWORD', '089e1f4ec33ad67cc8541160fe89a199ce77186d')
 
 # Set MLflow tracking URI
 if MLFLOW_TRACKING_PASSWORD:

@@ -200,7 +200,7 @@ resource "aws_batch_job_queue" "training" {
 }
 
 # ============================================
-# Batch Job Definition
+# Batch Job Definition (Updated with correct variable names)
 # ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
@@ -215,8 +215,8 @@ resource "aws_batch_job_definition" "retraining" {
     ]
     
     environment = [
-      { name = "MODEL_BUCKET", value = var.model_bucket },
-      { name = "DATA_BUCKET", value = var.data_bucket },
+      { name = "MODEL_BUCKET", value = var.models_bucket },
+      { name = "DATA_BUCKET", value = var.raw_data_bucket },
       { name = "AWS_REGION", value = var.aws_region },
       { name = "JENKINS_URL", value = var.jenkins_url },
       { name = "JENKINS_TOKEN", value = var.jenkins_token },
