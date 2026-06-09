@@ -200,7 +200,7 @@ resource "aws_batch_job_queue" "training" {
 }
 
 # ============================================
-# Batch Job Definition (Updated with correct variable names)
+# Batch Job Definition (UPDATED with command and jobRoleArn)
 # ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
@@ -208,6 +208,9 @@ resource "aws_batch_job_definition" "retraining" {
 
   container_properties = jsonencode({
     image = "${aws_ecr_repository.training.repository_url}:latest"
+    
+    # ✅ CRITICAL: Command to run your training script
+    command = ["python", "retrain.py"]
     
     resourceRequirements = [
       { type = "VCPU", value = tostring(var.job_vcpus) },
@@ -222,6 +225,7 @@ resource "aws_batch_job_definition" "retraining" {
       { name = "JENKINS_TOKEN", value = var.jenkins_token },
       { name = "JENKINS_USERNAME", value = var.jenkins_username },
       { name = "JENKINS_API_TOKEN", value = var.jenkins_api_token },
+      { name = "JOB_NAME", value = "first-chest-pipeline" },
       # DAGsHub MLflow Configuration
       { name = "MLFLOW_TRACKING_URI", value = "https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow" },
       { name = "MLFLOW_TRACKING_USERNAME", value = "Gajju9191" },
@@ -230,10 +234,13 @@ resource "aws_batch_job_definition" "retraining" {
     
     executionRoleArn = aws_iam_role.batch_role.arn
     
+    # ✅ CRITICAL: Job role ARN for AWS SDK permissions
+    jobRoleArn = aws_iam_role.batch_role.arn
+    
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group" = "/aws/batch/chest-ct-retraining"
+        "awslogs-group" = aws_cloudwatch_log_group.batch.name
         "awslogs-region" = var.aws_region
       }
     }
