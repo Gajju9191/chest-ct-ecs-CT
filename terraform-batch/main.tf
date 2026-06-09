@@ -147,7 +147,7 @@ resource "aws_security_group" "batch" {
 }
 
 # ============================================
-# Batch Compute Environment (UPDATED to FARGATE)
+# Batch Compute Environment (FARGATE with max_vcpus workaround)
 # ============================================
 resource "aws_batch_compute_environment" "training" {
   compute_environment_name = "chest-ct-training-fargate"
@@ -156,6 +156,7 @@ resource "aws_batch_compute_environment" "training" {
 
   compute_resources {
     type                = "FARGATE"
+    max_vcpus           = 4  # Required by Terraform, ignored by AWS for FARGATE
     subnets             = var.subnet_ids
     security_group_ids  = [aws_security_group.batch.id]
   }
