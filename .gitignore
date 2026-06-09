@@ -219,36 +219,112 @@ __marimo__/
 
 
 
-# Terraform
-terraform.tfvars
-*.tfstate
-*.tfstate.backup
+# ============================================
+# TERRAFORM (UPDATED - COMPLETE)
+# ============================================
+# Local .terraform directories
+**/.terraform/
 .terraform/
 
-# Python
-__pycache__/
-*.pyc
-venv/
-.env
+# Terraform state files (CRITICAL - contains sensitive data)
+*.tfstate
+*.tfstate.*
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.lock.info
 
-# IDE
+# Terraform plan files
+*.tfplan
+*.tfplan.json
+
+# Provider and module lock files
+.terraform.lock.hcl
+
+# Variable files (often contain secrets)
+*.tfvars
+*.tfvars.json
+terraform.auto.tfvars
+terraform.auto.tfvars.json
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfstate files from any directory
+**/*.tfstate
+**/*.tfstate.*
+
+
+# ============================================
+# PYTHON (UPDATED)
+# ============================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+*.cover
+.hypothesis/
+.env
+.venv
+venv/
+ENV/
+env/
+
+# ============================================
+# IDE AND EDITOR FILES
+# ============================================
 .vscode/
 .idea/
-
-# OS
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
+.desktop.ini
+*.sublime-*
 
-# Model files
+# ============================================
+# MODEL AND DATA FILES
+# ============================================
 *.h5
+*.hdf5
 *.pkl
+*.pickle
+*.joblib
+*.pth
+*.pt
+*.onnx
+*.tflite
 
-# Data
+# Data directories
 data/
+datasets/
 *.zip
+*.tar.gz
+*.tgz
+*.7z
 
-
-# Common image formats
+# Image files (if generated)
 *.jpg
 *.jpeg
 *.png
@@ -257,3 +333,21 @@ data/
 *.tiff
 *.webp
 *.jfif
+
+# Logs
+*.log
+logs/
+
+# ============================================
+# SECURITY (CRITICAL)
+# ============================================
+# Secrets and credentials
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+.secrets/
+**/.secrets
+**/.env.local
+**/.env.*.local

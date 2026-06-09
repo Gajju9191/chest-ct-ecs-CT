@@ -53,7 +53,7 @@ resource "aws_iam_role_policy_attachment" "batch_service_cloudwatch" {
 }
 
 # ============================================
-# IAM Role for EC2 instances (for Batch compute resources)
+# IAM Role for FARGATE tasks (Updated for FARGATE - removed EC2)
 # ============================================
 resource "aws_iam_role" "batch_role" {
   name = "chest-ct-batch-role"
@@ -65,13 +65,6 @@ resource "aws_iam_role" "batch_role" {
         Effect = "Allow"
         Principal = {
           Service = "ecs-tasks.amazonaws.com"
-        }
-      },
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
         }
       }
     ]
@@ -131,18 +124,10 @@ resource "aws_iam_role_policy_attachment" "batch_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# CloudWatch Logs Access for EC2 role
+# CloudWatch Logs Access
 resource "aws_iam_role_policy_attachment" "batch_logs" {
   role       = aws_iam_role.batch_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-}
-
-# ============================================
-# Instance Profile
-# ============================================
-resource "aws_iam_instance_profile" "batch_profile" {
-  name = "chest-ct-batch-profile"
-  role = aws_iam_role.batch_role.name
 }
 
 # ============================================
@@ -162,26 +147,17 @@ resource "aws_security_group" "batch" {
 }
 
 # ============================================
-# Batch Compute Environment
+# Batch Compute Environment (UPDATED to FARGATE)
 # ============================================
 resource "aws_batch_compute_environment" "training" {
-  compute_environment_name = "chest-ct-training-env"
+  compute_environment_name = "chest-ct-training-fargate"
   type                     = "MANAGED"
   service_role             = aws_iam_role.batch_service_role.arn
 
   compute_resources {
-    type                = "EC2"
-    allocation_strategy = "BEST_FIT_PROGRESSIVE"
-    max_vcpus           = var.max_vcpus
-    min_vcpus           = 0
-    desired_vcpus       = 2
-    instance_role       = aws_iam_instance_profile.batch_profile.arn
-    instance_type       = var.instance_types
+    type                = "FARGATE"
     subnets             = var.subnet_ids
     security_group_ids  = [aws_security_group.batch.id]
-    
-    # Explicitly set On-Demand (no Spot)
-    bid_percentage = 0
   }
 }
 
@@ -200,11 +176,14 @@ resource "aws_batch_job_queue" "training" {
 }
 
 # ============================================
-# Batch Job Definition (UPDATED with command and jobRoleArn)
+# Batch Job Definition (UPDATED for FARGATE)
 # ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
   type = "container"
+  
+  # ✅ ADDED: Platform capabilities for FARGATE
+  platform_capabilities = ["FARGATE"]
 
   container_properties = jsonencode({
     image = "${aws_ecr_repository.training.repository_url}:latest"
