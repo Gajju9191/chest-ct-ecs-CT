@@ -17,8 +17,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from sklearn.model_selection import train_test_split
 
 logging.basicConfig(level=logging.INFO)
@@ -35,42 +33,24 @@ JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '118d61c306e6cdc524e373e
 JOB_NAME = "first-chest-pipeline"
 
 # Performance threshold - minimum improvement required to deploy (percentage)
-IMPROVEMENT_THRESHOLD = 1.0  # 1% improvement required
+IMPROVEMENT_THRESHOLD = 1.0
 
-# MLflow Remote Tracking Configuration (DAGsHub)
+# MLflow Remote Tracking Configuration
 MLFLOW_TRACKING_URI = os.environ.get('MLFLOW_TRACKING_URI', 'https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow')
 MLFLOW_TRACKING_USERNAME = os.environ.get('MLFLOW_TRACKING_USERNAME', 'Gajju9191')
 MLFLOW_TRACKING_PASSWORD = os.environ.get('MLFLOW_TRACKING_PASSWORD', '089e1f4ec33ad67cc8541160fe89a199ce77186d')
 
-# Set up retry session for MLflow
-def get_retry_session():
-    session = requests.Session()
-    retries = Retry(
-        total=10,
-        backoff_factor=2,
-        status_forcelist=[408, 429, 500, 502, 503, 504],
-        allowed_methods=["GET", "POST"]
-    )
-    adapter = HTTPAdapter(max_retries=retries)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    return session
-
-# Set MLflow tracking URI with retry
+# Set MLflow tracking URI with environment variables
 if MLFLOW_TRACKING_PASSWORD:
     os.environ['MLFLOW_TRACKING_USERNAME'] = MLFLOW_TRACKING_USERNAME
     os.environ['MLFLOW_TRACKING_PASSWORD'] = MLFLOW_TRACKING_PASSWORD
-    
-    # Set custom requests session for MLflow
-    mlflow.utils.rest_utils.http_request = get_retry_session().request
-    
-    # Set longer timeout for MLflow
     os.environ['MLFLOW_HTTP_REQUEST_TIMEOUT'] = '300'  # 5 minutes timeout
     
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     logger.info(f"✅ MLflow tracking configured: {MLFLOW_TRACKING_URI}")
 else:
     logger.warning("⚠️ MLFLOW_TRACKING_PASSWORD not set. Experiments will be logged locally.")
+    mlflow.set_tracking_uri("file:///tmp/mlruns")
 
 # Local paths
 CURRENT_MODEL_PATH = '/tmp/current_model.h5'
@@ -83,9 +63,10 @@ LEARNING_RATE = 1e-5
 
 
 def trigger_jenkins():
-    """Trigger Jenkins deployment with CSRF crumb handling and retries"""
+    """Trigger Jenkins deployment"""
     for attempt in range(3):
         try:
+            # First, get the CSRF crumb
             crumb_url = f"{JENKINS_URL}/crumbIssuer/api/json"
             crumb_resp = requests.get(crumb_url, timeout=30)
             
@@ -97,6 +78,7 @@ def trigger_jenkins():
                 headers = {crumb_field: crumb}
                 logger.info("✅ CSRF crumb obtained")
             
+            # Trigger the build
             url = f"{JENKINS_URL}/job/{JOB_NAME}/build?token={JENKINS_TOKEN}"
             response = requests.post(url, headers=headers, timeout=30)
             
@@ -113,11 +95,11 @@ def trigger_jenkins():
 
 
 def download_current_model():
-    """Download existing trained model from S3 for fine-tuning"""
+    """Download existing trained model from S3"""
     s3 = boto3.client('s3')
     try:
         s3.download_file(MODEL_BUCKET, 'production/model.h5', CURRENT_MODEL_PATH)
-        logger.info("✅ Downloaded existing model from S3 for fine-tuning")
+        logger.info("✅ Downloaded existing model from S3")
         return tf.keras.models.load_model(CURRENT_MODEL_PATH)
     except Exception as e:
         logger.warning(f"⚠️ No existing model found: {e}")
@@ -125,7 +107,7 @@ def download_current_model():
 
 
 def download_training_data():
-    """Download and extract training data from zip file"""
+    """Download and extract training data"""
     s3 = boto3.client('s3')
     Path(DATA_PATH).mkdir(parents=True, exist_ok=True)
     
@@ -152,7 +134,7 @@ def download_training_data():
 
 
 def load_validation_data():
-    """Load validation data for model comparison"""
+    """Load validation data"""
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     
     datagen = ImageDataGenerator(rescale=1./255, validation_split=VALIDATION_SPLIT)
@@ -169,7 +151,7 @@ def load_validation_data():
 
 
 def evaluate_model_accuracy(model, validation_generator):
-    """Evaluate model accuracy on validation data"""
+    """Evaluate model accuracy"""
     loss, accuracy = model.evaluate(validation_generator, verbose=0)
     return accuracy
 
@@ -197,12 +179,12 @@ def create_scratch_model(input_shape=(224, 224, 3), num_classes=2):
         metrics=['accuracy']
     )
     
-    logger.info("🆕 Created new model from scratch (MobileNetV2 base)")
+    logger.info("🆕 Created new model from scratch")
     return model
 
 
 def compare_and_promote(new_model_path, old_model, validation_generator):
-    """Compare new model vs old model on validation data"""
+    """Compare models and decide deployment"""
     new_model = tf.keras.models.load_model(new_model_path)
     new_accuracy = evaluate_model_accuracy(new_model, validation_generator)
     logger.info(f"📊 New Model Accuracy: {new_accuracy:.4f}")
@@ -229,10 +211,10 @@ def compare_and_promote(new_model_path, old_model, validation_generator):
             logger.warning(f"Could not log metrics to MLflow: {e}")
         
         if improvement >= IMPROVEMENT_THRESHOLD:
-            logger.info(f"✅ New model is BETTER! Improvement of {improvement:.2f}% meets threshold of {IMPROVEMENT_THRESHOLD}%")
+            logger.info(f"✅ New model is BETTER! Improvement: {improvement:.2f}%")
             return True, new_accuracy, old_accuracy
         else:
-            logger.info(f"⏸️ New model NOT better enough. Improvement {improvement:.2f}% < {IMPROVEMENT_THRESHOLD}% threshold")
+            logger.info(f"⏸️ New model NOT better enough: {improvement:.2f}% < {IMPROVEMENT_THRESHOLD}%")
             return False, new_accuracy, old_accuracy
     else:
         logger.info("🆕 First model - deploying to production.")
@@ -240,7 +222,7 @@ def compare_and_promote(new_model_path, old_model, validation_generator):
 
 
 def upload_model_to_s3(model_path):
-    """Upload retrained model to S3 with versioning"""
+    """Upload model to S3 with versioning"""
     s3 = boto3.client('s3')
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
@@ -260,25 +242,24 @@ def upload_model_to_s3(model_path):
 
 def main():
     logger.info("=" * 60)
-    logger.info("🔄 Starting Chest CT Model Fine-tuning (Transfer Learning)")
+    logger.info("🔄 Starting Chest CT Model Fine-tuning")
     logger.info("=" * 60)
     
-    # Log environment info for debugging
+    # Log environment info
     logger.info(f"MLflow Tracking URI: {MLFLOW_TRACKING_URI}")
     logger.info(f"Model Bucket: {MODEL_BUCKET}")
     logger.info(f"Data Bucket: {DATA_BUCKET}")
     
-    # Set MLflow experiment with error handling
+    # Set MLflow experiment
     try:
-        if MLFLOW_TRACKING_PASSWORD:
-            mlflow.set_experiment("chest-ct-retraining")
-            logger.info("✅ MLflow experiment set successfully")
+        mlflow.set_experiment("chest-ct-retraining")
+        logger.info("✅ MLflow experiment set successfully")
     except Exception as e:
         logger.warning(f"⚠️ Could not set MLflow experiment: {e}")
-        logger.info("Continuing without MLflow tracking")
     
     try:
         with mlflow.start_run(run_name=f"retraining-{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+            # Log parameters
             mlflow.log_params({
                 "retraining_date": datetime.now().isoformat(),
                 "fine_tune_epochs": FINE_TUNE_EPOCHS,
@@ -290,16 +271,20 @@ def main():
                 "improvement_threshold": IMPROVEMENT_THRESHOLD
             })
             
+            # Download existing model
             existing_model = download_current_model()
             mlflow.log_param("using_base_model", existing_model is not None)
             
+            # Download training data
             has_data = download_training_data()
             if not has_data:
                 logger.warning("⚠️ No training data found. Skipping retraining.")
                 return
             
+            # Load validation data
             validation_generator = load_validation_data()
             
+            # Create or use existing model
             if existing_model:
                 logger.info("🔄 Using existing model as base")
                 model = existing_model
@@ -307,22 +292,27 @@ def main():
                 logger.info("🆕 No existing model. Training from scratch...")
                 model = create_scratch_model()
             
+            # Save model
             model.save(NEW_MODEL_PATH)
             logger.info(f"✅ Model saved to {NEW_MODEL_PATH}")
             
+            # Log model to MLflow
             try:
                 mlflow.tensorflow.log_model(model, "chest-ct-model")
             except Exception as e:
                 logger.warning(f"Could not log model to MLflow: {e}")
             
+            # Compare and decide deployment
             should_deploy, new_acc, old_acc = compare_and_promote(
                 NEW_MODEL_PATH, existing_model, validation_generator
             )
             mlflow.log_param("deployed", should_deploy)
             
+            # Upload to S3
             version = upload_model_to_s3(NEW_MODEL_PATH)
             mlflow.log_param("model_version", version)
             
+            # Trigger Jenkins if model improved
             if should_deploy:
                 logger.info("🔔 New model is better! Triggering Jenkins deployment...")
                 trigger_jenkins()
@@ -331,9 +321,9 @@ def main():
             
             logger.info("=" * 60)
             if should_deploy:
-                logger.info(f"✅ Fine-tuning complete! New model version: {version} DEPLOYED")
+                logger.info(f"✅ Fine-tuning complete! Model version: {version} DEPLOYED")
             else:
-                logger.info(f"✅ Fine-tuning complete! Model version: {version} (NOT DEPLOYED - no improvement)")
+                logger.info(f"✅ Fine-tuning complete! Model version: {version} (NOT DEPLOYED)")
             logger.info("=" * 60)
             
     except Exception as e:

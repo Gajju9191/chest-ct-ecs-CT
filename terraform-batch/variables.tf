@@ -3,12 +3,6 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "environment" {
-  description = "Environment name (e.g., production, staging, dev)"
-  type        = string
-  default     = "production"
-}
-
 variable "vpc_id" {
   description = "VPC ID for Batch compute environment"
   type        = string
@@ -19,7 +13,6 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
-# S3 Buckets for CT Pipeline
 variable "models_bucket" {
   description = "S3 bucket for trained models"
   type        = string
@@ -42,18 +35,6 @@ variable "job_memory" {
   description = "Memory for Batch job (MB)"
   type        = number
   default     = 16384
-}
-
-variable "instance_types" {
-  description = "EC2 instance types for Batch compute environment"
-  type        = list(string)
-  default     = ["c5.xlarge", "c5.2xlarge", "c5.4xlarge", "m5.xlarge", "m5.2xlarge"]
-}
-
-variable "max_vcpus" {
-  description = "Maximum vCPUs for Batch compute environment"
-  type        = number
-  default     = 8
 }
 
 variable "jenkins_url" {
@@ -80,7 +61,6 @@ variable "jenkins_api_token" {
   sensitive   = true
 }
 
-# DAGsHub MLflow Configuration
 variable "dagshub_token" {
   description = "DAGsHub access token for MLflow tracking"
   type        = string
