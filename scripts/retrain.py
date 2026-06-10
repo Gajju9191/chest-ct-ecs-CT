@@ -13,11 +13,13 @@ import json
 import logging
 import numpy as np
 import zipfile
+import time
 from datetime import datetime
 from pathlib import Path
 from requests.auth import HTTPBasicAuth
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,10 +42,31 @@ MLFLOW_TRACKING_URI = os.environ.get('MLFLOW_TRACKING_URI', 'https://dagshub.com
 MLFLOW_TRACKING_USERNAME = os.environ.get('MLFLOW_TRACKING_USERNAME', 'Gajju9191')
 MLFLOW_TRACKING_PASSWORD = os.environ.get('MLFLOW_TRACKING_PASSWORD', '089e1f4ec33ad67cc8541160fe89a199ce77186d')
 
-# Set MLflow tracking URI
+# Set up retry session for MLflow
+def get_retry_session():
+    session = requests.Session()
+    retries = Retry(
+        total=10,
+        backoff_factor=2,
+        status_forcelist=[408, 429, 500, 502, 503, 504],
+        allowed_methods=["GET", "POST"]
+    )
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+# Set MLflow tracking URI with retry
 if MLFLOW_TRACKING_PASSWORD:
     os.environ['MLFLOW_TRACKING_USERNAME'] = MLFLOW_TRACKING_USERNAME
     os.environ['MLFLOW_TRACKING_PASSWORD'] = MLFLOW_TRACKING_PASSWORD
+    
+    # Set custom requests session for MLflow
+    mlflow.utils.rest_utils.http_request = get_retry_session().request
+    
+    # Set longer timeout for MLflow
+    os.environ['MLFLOW_HTTP_REQUEST_TIMEOUT'] = '300'  # 5 minutes timeout
+    
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     logger.info(f"✅ MLflow tracking configured: {MLFLOW_TRACKING_URI}")
 else:
@@ -60,38 +83,33 @@ LEARNING_RATE = 1e-5
 
 
 def trigger_jenkins():
-    """Trigger Jenkins deployment with CSRF crumb handling"""
-    try:
-        # First, get the CSRF crumb
-        crumb_url = f"{JENKINS_URL}/crumbIssuer/api/json"
-        crumb_resp = requests.get(crumb_url, timeout=10)
-        
-        headers = {}
-        if crumb_resp.status_code == 200:
-            crumb_data = crumb_resp.json()
-            crumb = crumb_data['crumb']
-            crumb_field = crumb_data['crumbRequestField']
-            headers = {crumb_field: crumb}
-            logger.info("✅ CSRF crumb obtained")
-        else:
-            logger.warning(f"Could not obtain CSRF crumb: {crumb_resp.status_code}")
-        
-        # Trigger the build
-        url = f"{JENKINS_URL}/job/{JOB_NAME}/build?token={JENKINS_TOKEN}"
-        response = requests.post(url, headers=headers, timeout=30)
-        
-        if response.status_code == 201:
-            logger.info("✅ Jenkins build triggered successfully!")
-            return True
-        elif response.status_code == 403:
-            logger.error("❌ Jenkins returned 403 - CSRF protection may still be enabled")
-            return False
-        else:
-            logger.error(f"❌ Jenkins trigger failed: {response.status_code}")
-            return False
-    except Exception as e:
-        logger.error(f"❌ Failed to trigger Jenkins: {e}")
-        return False
+    """Trigger Jenkins deployment with CSRF crumb handling and retries"""
+    for attempt in range(3):
+        try:
+            crumb_url = f"{JENKINS_URL}/crumbIssuer/api/json"
+            crumb_resp = requests.get(crumb_url, timeout=30)
+            
+            headers = {}
+            if crumb_resp.status_code == 200:
+                crumb_data = crumb_resp.json()
+                crumb = crumb_data['crumb']
+                crumb_field = crumb_data['crumbRequestField']
+                headers = {crumb_field: crumb}
+                logger.info("✅ CSRF crumb obtained")
+            
+            url = f"{JENKINS_URL}/job/{JOB_NAME}/build?token={JENKINS_TOKEN}"
+            response = requests.post(url, headers=headers, timeout=30)
+            
+            if response.status_code == 201:
+                logger.info("✅ Jenkins build triggered successfully!")
+                return True
+        except Exception as e:
+            logger.warning(f"Jenkins trigger attempt {attempt + 1} failed: {e}")
+            if attempt < 2:
+                time.sleep(5)
+    
+    logger.error("❌ Failed to trigger Jenkins after 3 attempts")
+    return False
 
 
 def download_current_model():
@@ -112,17 +130,14 @@ def download_training_data():
     Path(DATA_PATH).mkdir(parents=True, exist_ok=True)
     
     try:
-        # Download the zip file
         zip_path = '/tmp/chest-data.zip'
         s3.download_file(DATA_BUCKET, 'chest-data.zip', zip_path)
         logger.info("✅ Downloaded chest-data.zip")
         
-        # Extract the zip file
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(DATA_PATH)
         logger.info(f"✅ Extracted zip to {DATA_PATH}")
         
-        # Count extracted files
         file_count = 0
         for root, dirs, files in os.walk(DATA_PATH):
             for file in files:
@@ -160,9 +175,7 @@ def evaluate_model_accuracy(model, validation_generator):
 
 
 def create_scratch_model(input_shape=(224, 224, 3), num_classes=2):
-    """
-    Create a new model from scratch (only if no existing model exists)
-    """
+    """Create a new model from scratch"""
     base_model = tf.keras.applications.MobileNetV2(
         input_shape=input_shape,
         include_top=False,
@@ -189,25 +202,16 @@ def create_scratch_model(input_shape=(224, 224, 3), num_classes=2):
 
 
 def compare_and_promote(new_model_path, old_model, validation_generator):
-    """
-    Compare new model vs old model on validation data.
-    Only promotes if accuracy improves by threshold.
-    Returns: (should_deploy, new_accuracy, old_accuracy)
-    """
-    # Load new model
+    """Compare new model vs old model on validation data"""
     new_model = tf.keras.models.load_model(new_model_path)
-    
-    # Evaluate new model
     new_accuracy = evaluate_model_accuracy(new_model, validation_generator)
     logger.info(f"📊 New Model Accuracy: {new_accuracy:.4f}")
     
     old_accuracy = 0
     if old_model is not None:
-        # Evaluate old model
         old_accuracy = evaluate_model_accuracy(old_model, validation_generator)
         logger.info(f"📊 Old Model Accuracy: {old_accuracy:.4f}")
         
-        # Calculate improvement percentage
         if old_accuracy > 0:
             improvement = ((new_accuracy - old_accuracy) / old_accuracy) * 100
         else:
@@ -215,14 +219,15 @@ def compare_and_promote(new_model_path, old_model, validation_generator):
         
         logger.info(f"📈 Improvement: {improvement:+.2f}%")
         
-        # Log comparison to MLflow
-        mlflow.log_metrics({
-            "new_model_accuracy": new_accuracy,
-            "old_model_accuracy": old_accuracy,
-            "improvement_percent": improvement
-        })
+        try:
+            mlflow.log_metrics({
+                "new_model_accuracy": new_accuracy,
+                "old_model_accuracy": old_accuracy,
+                "improvement_percent": improvement
+            })
+        except Exception as e:
+            logger.warning(f"Could not log metrics to MLflow: {e}")
         
-        # Check if improvement meets threshold
         if improvement >= IMPROVEMENT_THRESHOLD:
             logger.info(f"✅ New model is BETTER! Improvement of {improvement:.2f}% meets threshold of {IMPROVEMENT_THRESHOLD}%")
             return True, new_accuracy, old_accuracy
@@ -230,7 +235,6 @@ def compare_and_promote(new_model_path, old_model, validation_generator):
             logger.info(f"⏸️ New model NOT better enough. Improvement {improvement:.2f}% < {IMPROVEMENT_THRESHOLD}% threshold")
             return False, new_accuracy, old_accuracy
     else:
-        # First model ever - deploy it
         logger.info("🆕 First model - deploying to production.")
         return True, new_accuracy, old_accuracy
 
@@ -240,26 +244,15 @@ def upload_model_to_s3(model_path):
     s3 = boto3.client('s3')
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Upload as versioned model
     version_key = f"models/model_{timestamp}.h5"
     s3.upload_file(model_path, MODEL_BUCKET, version_key)
     logger.info(f"✅ Uploaded versioned model: {version_key}")
     
-    # Copy to production location
     copy_source = {'Bucket': MODEL_BUCKET, 'Key': version_key}
-    s3.copy_object(
-        CopySource=copy_source,
-        Bucket=MODEL_BUCKET,
-        Key='production/model.h5'
-    )
+    s3.copy_object(CopySource=copy_source, Bucket=MODEL_BUCKET, Key='production/model.h5')
     logger.info("✅ Updated production model in S3")
     
-    # Also copy to root path for Jenkins compatibility
-    s3.copy_object(
-        CopySource=copy_source,
-        Bucket=MODEL_BUCKET,
-        Key='model.h5'
-    )
+    s3.copy_object(CopySource=copy_source, Bucket=MODEL_BUCKET, Key='model.h5')
     logger.info("✅ Copied model to root path for Jenkins")
     
     return version_key
@@ -270,76 +263,82 @@ def main():
     logger.info("🔄 Starting Chest CT Model Fine-tuning (Transfer Learning)")
     logger.info("=" * 60)
     
-    # Set MLflow experiment
-    if MLFLOW_TRACKING_PASSWORD:
-        mlflow.set_experiment("chest-ct-retraining")
+    # Log environment info for debugging
+    logger.info(f"MLflow Tracking URI: {MLFLOW_TRACKING_URI}")
+    logger.info(f"Model Bucket: {MODEL_BUCKET}")
+    logger.info(f"Data Bucket: {DATA_BUCKET}")
     
-    with mlflow.start_run(run_name=f"retraining-{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
-        # Log parameters
-        mlflow.log_params({
-            "retraining_date": datetime.now().isoformat(),
-            "fine_tune_epochs": FINE_TUNE_EPOCHS,
-            "learning_rate": LEARNING_RATE,
-            "batch_size": BATCH_SIZE,
-            "model_bucket": MODEL_BUCKET,
-            "data_bucket": DATA_BUCKET,
-            "aws_region": AWS_REGION,
-            "improvement_threshold": IMPROVEMENT_THRESHOLD
-        })
-        
-        # Step 1: Download existing trained model
-        existing_model = download_current_model()
-        mlflow.log_param("using_base_model", existing_model is not None)
-        
-        # Step 2: Download and extract training data
-        has_data = download_training_data()
-        if not has_data:
-            logger.warning("⚠️ No training data found. Skipping retraining.")
-            return
-        
-        # Step 3: Load validation data (for comparison)
-        validation_generator = load_validation_data()
-        
-        # Step 4: Create or fine-tune model
-        if existing_model:
-            logger.info("🔄 Using existing model as base")
-            model = existing_model
-        else:
-            logger.info("🆕 No existing model. Training from scratch...")
-            model = create_scratch_model()
-        
-        # Step 5: Save model
-        model.save(NEW_MODEL_PATH)
-        logger.info(f"✅ Model saved to {NEW_MODEL_PATH}")
-        
-        # Log model to MLflow
-        mlflow.tensorflow.log_model(model, "chest-ct-model")
-        
-        # Step 6: Compare new model with old model
-        should_deploy, new_acc, old_acc = compare_and_promote(
-            NEW_MODEL_PATH, 
-            existing_model, 
-            validation_generator
-        )
-        mlflow.log_param("deployed", should_deploy)
-        
-        # Step 7: Upload to S3 with versioning (always save versioned copy)
-        version = upload_model_to_s3(NEW_MODEL_PATH)
-        mlflow.log_param("model_version", version)
-        
-        # Step 8: Trigger Jenkins deployment ONLY if model improved
-        if should_deploy:
-            logger.info("🔔 New model is better! Triggering Jenkins deployment...")
-            trigger_jenkins()
-        else:
-            logger.info("📌 Model not deployed - no significant improvement detected")
-        
-        logger.info("=" * 60)
-        if should_deploy:
-            logger.info(f"✅ Fine-tuning complete! New model version: {version} DEPLOYED")
-        else:
-            logger.info(f"✅ Fine-tuning complete! Model version: {version} (NOT DEPLOYED - no improvement)")
-        logger.info("=" * 60)
+    # Set MLflow experiment with error handling
+    try:
+        if MLFLOW_TRACKING_PASSWORD:
+            mlflow.set_experiment("chest-ct-retraining")
+            logger.info("✅ MLflow experiment set successfully")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not set MLflow experiment: {e}")
+        logger.info("Continuing without MLflow tracking")
+    
+    try:
+        with mlflow.start_run(run_name=f"retraining-{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+            mlflow.log_params({
+                "retraining_date": datetime.now().isoformat(),
+                "fine_tune_epochs": FINE_TUNE_EPOCHS,
+                "learning_rate": LEARNING_RATE,
+                "batch_size": BATCH_SIZE,
+                "model_bucket": MODEL_BUCKET,
+                "data_bucket": DATA_BUCKET,
+                "aws_region": AWS_REGION,
+                "improvement_threshold": IMPROVEMENT_THRESHOLD
+            })
+            
+            existing_model = download_current_model()
+            mlflow.log_param("using_base_model", existing_model is not None)
+            
+            has_data = download_training_data()
+            if not has_data:
+                logger.warning("⚠️ No training data found. Skipping retraining.")
+                return
+            
+            validation_generator = load_validation_data()
+            
+            if existing_model:
+                logger.info("🔄 Using existing model as base")
+                model = existing_model
+            else:
+                logger.info("🆕 No existing model. Training from scratch...")
+                model = create_scratch_model()
+            
+            model.save(NEW_MODEL_PATH)
+            logger.info(f"✅ Model saved to {NEW_MODEL_PATH}")
+            
+            try:
+                mlflow.tensorflow.log_model(model, "chest-ct-model")
+            except Exception as e:
+                logger.warning(f"Could not log model to MLflow: {e}")
+            
+            should_deploy, new_acc, old_acc = compare_and_promote(
+                NEW_MODEL_PATH, existing_model, validation_generator
+            )
+            mlflow.log_param("deployed", should_deploy)
+            
+            version = upload_model_to_s3(NEW_MODEL_PATH)
+            mlflow.log_param("model_version", version)
+            
+            if should_deploy:
+                logger.info("🔔 New model is better! Triggering Jenkins deployment...")
+                trigger_jenkins()
+            else:
+                logger.info("📌 Model not deployed - no significant improvement detected")
+            
+            logger.info("=" * 60)
+            if should_deploy:
+                logger.info(f"✅ Fine-tuning complete! New model version: {version} DEPLOYED")
+            else:
+                logger.info(f"✅ Fine-tuning complete! Model version: {version} (NOT DEPLOYED - no improvement)")
+            logger.info("=" * 60)
+            
+    except Exception as e:
+        logger.error(f"❌ Training failed with error: {e}")
+        raise
 
 
 if __name__ == "__main__":

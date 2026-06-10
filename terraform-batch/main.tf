@@ -46,14 +46,13 @@ resource "aws_iam_role_policy_attachment" "batch_service_ecs_full" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
 }
 
-# ADDED: CloudWatch Logs for Batch service role
 resource "aws_iam_role_policy_attachment" "batch_service_cloudwatch" {
   role       = aws_iam_role.batch_service_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
 # ============================================
-# IAM Role for FARGATE tasks (Updated for FARGATE - removed EC2)
+# IAM Role for FARGATE tasks
 # ============================================
 resource "aws_iam_role" "batch_role" {
   name = "chest-ct-batch-role"
@@ -76,7 +75,6 @@ resource "aws_iam_role_policy_attachment" "batch_role_ecs_full" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
 }
 
-# Custom ECS list policy
 resource "aws_iam_policy" "ecs_list_policy" {
   name        = "BatchECSListPolicy"
   description = "Allow Batch to list ECS clusters and resources"
@@ -112,19 +110,16 @@ resource "aws_iam_role_policy_attachment" "batch_role_ecs_list" {
   policy_arn = aws_iam_policy.ecs_list_policy.arn
 }
 
-# S3 Access for Batch
 resource "aws_iam_role_policy_attachment" "batch_s3" {
   role       = aws_iam_role.batch_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
-# ECR Access for Batch
 resource "aws_iam_role_policy_attachment" "batch_ecr" {
   role       = aws_iam_role.batch_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# CloudWatch Logs Access
 resource "aws_iam_role_policy_attachment" "batch_logs" {
   role       = aws_iam_role.batch_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
@@ -147,7 +142,7 @@ resource "aws_security_group" "batch" {
 }
 
 # ============================================
-# Batch Compute Environment (FARGATE with max_vcpus workaround)
+# Batch Compute Environment (FARGATE)
 # ============================================
 resource "aws_batch_compute_environment" "training" {
   compute_environment_name = "chest-ct-training-fargate"
@@ -156,7 +151,7 @@ resource "aws_batch_compute_environment" "training" {
 
   compute_resources {
     type                = "FARGATE"
-    max_vcpus           = 4  # Required by Terraform, ignored by AWS for FARGATE
+    max_vcpus           = 256
     subnets             = var.subnet_ids
     security_group_ids  = [aws_security_group.batch.id]
   }
@@ -177,19 +172,17 @@ resource "aws_batch_job_queue" "training" {
 }
 
 # ============================================
-# Batch Job Definition (UPDATED for FARGATE)
+# Batch Job Definition (UPDATED with network configuration)
 # ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
   type = "container"
   
-  # ✅ ADDED: Platform capabilities for FARGATE
   platform_capabilities = ["FARGATE"]
 
   container_properties = jsonencode({
     image = "${aws_ecr_repository.training.repository_url}:latest"
     
-    # ✅ CRITICAL: Command to run your training script
     command = ["python", "retrain.py"]
     
     resourceRequirements = [
@@ -206,15 +199,12 @@ resource "aws_batch_job_definition" "retraining" {
       { name = "JENKINS_USERNAME", value = var.jenkins_username },
       { name = "JENKINS_API_TOKEN", value = var.jenkins_api_token },
       { name = "JOB_NAME", value = "first-chest-pipeline" },
-      # DAGsHub MLflow Configuration
       { name = "MLFLOW_TRACKING_URI", value = "https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow" },
       { name = "MLFLOW_TRACKING_USERNAME", value = "Gajju9191" },
       { name = "MLFLOW_TRACKING_PASSWORD", value = var.dagshub_token }
     ]
     
     executionRoleArn = aws_iam_role.batch_role.arn
-    
-    # ✅ CRITICAL: Job role ARN for AWS SDK permissions
     jobRoleArn = aws_iam_role.batch_role.arn
     
     logConfiguration = {
@@ -225,6 +215,11 @@ resource "aws_batch_job_definition" "retraining" {
       }
     }
   })
+  
+  # ✅ THIS IS THE CRITICAL FIX - Assign public IP to each task
+  network_configuration {
+    assign_public_ip = true
+  }
 }
 
 # ============================================
@@ -244,9 +239,6 @@ resource "aws_cloudwatch_event_rule" "daily_retraining" {
   schedule_expression = "cron(30 8 * * ? *)"
 }
 
-# ============================================
-# IAM Role for EventBridge
-# ============================================
 resource "aws_iam_role" "eventbridge_role" {
   name = "chest-ct-eventbridge-role"
   assume_role_policy = jsonencode({
@@ -278,9 +270,6 @@ resource "aws_iam_role_policy" "eventbridge_policy" {
   })
 }
 
-# ============================================
-# EventBridge Target
-# ============================================
 resource "aws_cloudwatch_event_target" "batch_job" {
   rule      = aws_cloudwatch_event_rule.daily_retraining.name
   target_id = "SubmitBatchJob"
