@@ -217,9 +217,9 @@ resource "aws_batch_job_definition" "retraining" {
   })
   
   # ✅ THIS IS THE CRITICAL FIX - Assign public IP to each task
-  network_configuration {
-    assign_public_ip = true
-  }
+  #network_configuration {
+   # assign_public_ip = true
+  #}
 }
 
 # ============================================
