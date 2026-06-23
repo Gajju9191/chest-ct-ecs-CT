@@ -29,7 +29,7 @@ AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 JENKINS_URL = os.environ.get('JENKINS_URL', 'http://35.172.79.85:8080')
 JENKINS_TOKEN = os.environ.get('JENKINS_TOKEN', 'ct-trigger-token')
 JENKINS_USERNAME = os.environ.get('JENKINS_USERNAME', 'Gajanan Wagalgave')
-JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '11ce1c53121616837d3834bf55b4e4663c')
+JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '1123361a4fe7312fa7a82a8f7c06f4e495')
 JOB_NAME = "first-chest-pipeline"
 
 # Performance threshold - minimum improvement required to deploy (percentage)
