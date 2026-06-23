@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 MODEL_BUCKET = os.environ.get('MODEL_BUCKET', 'chest-ct-models-155407238004')
 DATA_BUCKET = os.environ.get('DATA_BUCKET', 'chest-models-gajju')
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
-JENKINS_URL = os.environ.get('JENKINS_URL', 'http://32.194.129.145:8080')
+JENKINS_URL = os.environ.get('JENKINS_URL', 'http://35.172.79.85:8080')
 JENKINS_TOKEN = os.environ.get('JENKINS_TOKEN', 'ct-trigger-token')
 JENKINS_USERNAME = os.environ.get('JENKINS_USERNAME', 'Gajanan Wagalgave')
-JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '118d61c306e6cdc524e373e47263b305b1')
+JENKINS_API_TOKEN = os.environ.get('JENKINS_API_TOKEN', '11ce1c53121616837d3834bf55b4e4663c')
 JOB_NAME = "first-chest-pipeline"
 
 # Performance threshold - minimum improvement required to deploy (percentage)
