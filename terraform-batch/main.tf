@@ -142,7 +142,7 @@ resource "aws_security_group" "batch" {
 }
 
 # ============================================
-# Batch Compute Environment (FARGATE)
+# Batch Compute Environment (FARGATE with Public IP)
 # ============================================
 resource "aws_batch_compute_environment" "training" {
   compute_environment_name = "chest-ct-training-fargate"
@@ -154,6 +154,7 @@ resource "aws_batch_compute_environment" "training" {
     max_vcpus           = 256
     subnets             = var.subnet_ids
     security_group_ids  = [aws_security_group.batch.id]
+    assign_public_ip    = true
   }
 }
 
@@ -172,18 +173,13 @@ resource "aws_batch_job_queue" "training" {
 }
 
 # ============================================
-# Batch Job Definition (UPDATED with network_configuration)
+# Batch Job Definition
 # ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
   type = "container"
   
   platform_capabilities = ["FARGATE"]
-
-  # ✅ ADDED: This assigns public IP to each Fargate task
-  network_configuration {
-    assign_public_ip = true
-  }
 
   container_properties = jsonencode({
     image = "${aws_ecr_repository.training.repository_url}:latest"
