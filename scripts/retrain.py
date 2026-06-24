@@ -44,7 +44,7 @@ MLFLOW_TRACKING_PASSWORD = os.environ.get('MLFLOW_TRACKING_PASSWORD', '089e1f4ec
 if MLFLOW_TRACKING_PASSWORD:
     os.environ['MLFLOW_TRACKING_USERNAME'] = MLFLOW_TRACKING_USERNAME
     os.environ['MLFLOW_TRACKING_PASSWORD'] = MLFLOW_TRACKING_PASSWORD
-    os.environ['MLFLOW_HTTP_REQUEST_TIMEOUT'] = '300'  # 5 minutes timeout
+    os.environ['MLFLOW_HTTP_REQUEST_TIMEOUT'] = '600'  # 10 minutes timeout
     
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     logger.info(f"✅ MLflow tracking configured: {MLFLOW_TRACKING_URI}")

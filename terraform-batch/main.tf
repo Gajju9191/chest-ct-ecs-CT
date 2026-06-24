@@ -172,18 +172,13 @@ resource "aws_batch_job_queue" "training" {
 }
 
 # ============================================
-# Batch Job Definition (UPDATED with network_configuration)
+# Batch Job Definition (UPDATED - network_configuration inside container_properties)
 # ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
   type = "container"
   
   platform_capabilities = ["FARGATE"]
-
-  # ✅ ADDED: This assigns public IP to each Fargate task
-  network_configuration {
-    assign_public_ip = true
-  }
 
   container_properties = jsonencode({
     image = "${aws_ecr_repository.training.repository_url}:latest"
@@ -211,6 +206,11 @@ resource "aws_batch_job_definition" "retraining" {
     
     executionRoleArn = aws_iam_role.batch_role.arn
     jobRoleArn = aws_iam_role.batch_role.arn
+    
+    # ✅ Network configuration inside container_properties
+    networkConfiguration = {
+      assignPublicIp = "ENABLED"
+    }
     
     logConfiguration = {
       logDriver = "awslogs"
