@@ -172,13 +172,18 @@ resource "aws_batch_job_queue" "training" {
 }
 
 # ============================================
-# Batch Job Definition
+# Batch Job Definition (UPDATED with network_configuration)
 # ============================================
 resource "aws_batch_job_definition" "retraining" {
   name = "chest-ct-retraining"
   type = "container"
   
   platform_capabilities = ["FARGATE"]
+
+  # ✅ ADDED: This assigns public IP to each Fargate task
+  network_configuration {
+    assign_public_ip = true
+  }
 
   container_properties = jsonencode({
     image = "${aws_ecr_repository.training.repository_url}:latest"
@@ -198,7 +203,7 @@ resource "aws_batch_job_definition" "retraining" {
       { name = "JENKINS_TOKEN", value = var.jenkins_token },
       { name = "JENKINS_USERNAME", value = var.jenkins_username },
       { name = "JENKINS_API_TOKEN", value = var.jenkins_api_token },
-      { name = "JOB_NAME", value = "first-chest-pipeline" },
+      { name = "JOB_NAME", value = "ecs-cicd-d" },
       { name = "MLFLOW_TRACKING_URI", value = "https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow" },
       { name = "MLFLOW_TRACKING_USERNAME", value = "Gajju9191" },
       { name = "MLFLOW_TRACKING_PASSWORD", value = var.dagshub_token }
